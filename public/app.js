@@ -852,26 +852,6 @@ async function refreshSuggestions() {
   }
 }
 
-/* ================= settings: provider switch ================= */
-$('btn-settings').addEventListener('click', async () => {
-  const panel = $('settings-panel');
-  panel.hidden = !panel.hidden;
-  if (!panel.hidden) {
-    const { music_provider } = await api('/api/settings');
-    panel.querySelectorAll('[data-provider]').forEach((b) => {
-      b.classList.toggle('active', b.dataset.provider === music_provider);
-    });
-  }
-});
-document.querySelectorAll('#settings-panel [data-provider]').forEach((btn) => {
-  btn.addEventListener('click', async () => {
-    await api('/api/settings', { method: 'PUT', body: { music_provider: btn.dataset.provider } });
-    document.querySelectorAll('#settings-panel [data-provider]').forEach((b) => {
-      b.classList.toggle('active', b === btn);
-    });
-  });
-});
-
 /* ================= boot: resume a stream from /s/:id ================= */
 const match = location.pathname.match(/^\/s\/([0-9a-f-]{36})/);
 if (match) {

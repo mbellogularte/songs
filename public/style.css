@@ -423,23 +423,6 @@ form.thinking input { animation: thinkpulse 1.2s ease-in-out infinite; }
 #prompt-send:hover { transform: scale(1.08); }
 #prompt-send svg { width: 16px; height: 16px; fill: none; stroke: #0b0c10; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
 
-/* ---------- settings ---------- */
-#btn-settings {
-  position: fixed; right: 0.7rem; top: max(0.5rem, env(safe-area-inset-top)); z-index: 10;
-  color: var(--ink-faint); font-size: 1.5rem; line-height: 1; padding: 0.3rem 0.55rem;
-}
-#settings-panel {
-  position: fixed; right: 0.7rem; top: 3rem; z-index: 10;
-  display: flex; gap: 0.5rem; align-items: center;
-  font-size: 0.75rem; font-weight: 600; color: var(--ink-faint);
-  background: rgba(16, 18, 22, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 0.5rem 0.8rem; border-radius: 10px;
-  backdrop-filter: blur(12px);
-}
-#settings-panel button { color: var(--ink-sub); padding: 0.25rem 0.5rem; border-radius: 6px; }
-#settings-panel button.active { color: #0b0c10; background: var(--accent); }
-
 /* ---------- mood variants (per-song design token) ---------- */
 body.mood-clean #grain { opacity: 0.03; }
 body.mood-raw #grain { opacity: 0.13; }
