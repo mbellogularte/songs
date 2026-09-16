@@ -40,7 +40,11 @@ app.put('/api/settings', async (req, res) => {
 app.post('/api/streams', async (req, res) => {
   const prompt = String(req.body?.prompt || '').trim();
   if (!prompt) return res.status(400).json({ error: 'prompt required' });
-  const provider = req.body?.provider ? String(req.body.provider).toLowerCase() : null;
+  // MUSIC_PROVIDER_FORCE pins every stream born on this instance to one
+  // engine — tracks inherit it, so shared-DB workers can't cross-generate
+  const provider = req.body?.provider
+    ? String(req.body.provider).toLowerCase()
+    : process.env.MUSIC_PROVIDER_FORCE || null;
 
   const { rows } = await pool.query(
     `INSERT INTO streams (seed_prompt, provider) VALUES ($1, $2) RETURNING *`,
@@ -89,9 +93,15 @@ app.post('/api/streams/:id/tracks', async (req, res) => {
     [req.params.id]
   );
   const { rows } = await pool.query(
-    `INSERT INTO tracks (stream_id, position, prompt, source) VALUES ($1, $2, $3, $4)
+    `INSERT INTO tracks (stream_id, position, prompt, source, provider) VALUES ($1, $2, $3, $4, $5)
      RETURNING ${TRACK_COLUMNS}`,
-    [req.params.id, Number(maxPos[0].p) + 1, prompt, req.body?.source === 'suggestion' ? 'suggestion' : 'user']
+    [
+      req.params.id,
+      Number(maxPos[0].p) + 1,
+      prompt,
+      req.body?.source === 'suggestion' ? 'suggestion' : 'user',
+      streams[0].provider,
+    ]
   );
   engine.kick();
   res.status(201).json(rows[0]);

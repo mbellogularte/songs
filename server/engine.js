@@ -142,8 +142,8 @@ export async function ensureLookahead(streamId) {
       [streamId]
     );
     await pool.query(
-      `INSERT INTO tracks (stream_id, position, prompt, source) VALUES ($1, $2, $3, 'auto')`,
-      [streamId, Number(maxPos[0].p) + 1, prompt]
+      `INSERT INTO tracks (stream_id, position, prompt, source, provider) VALUES ($1, $2, $3, 'auto', $4)`,
+      [streamId, Number(maxPos[0].p) + 1, prompt, stream.provider]
     );
   }
   kick();
