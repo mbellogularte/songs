@@ -1,4 +1,5 @@
 import express from 'express';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { pool, initDb, getSetting, setSetting } from './db.js';
@@ -195,7 +196,30 @@ app.get('/api/tracks/:id/audio', async (req, res) => {
 
 // --- static frontend / PWA ---
 app.use(express.static(path.join(__dirname, '..', 'public')));
-app.get('*', (_req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'index.html')));
+
+// SPA catch-all with share-ready meta: /s/:id links carry the stream's own
+// title + prompt in their OpenGraph tags (WhatsApp, iMessage, Slack previews)
+const INDEX_HTML = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+const DEFAULT_OG_TITLE = 'Sona — Infinite AI Music Stream';
+const DEFAULT_OG_DESC = 'Type a thought, get an endless AI-generated mix. Every track composed live — with its own world of visuals.';
+const escapeHtml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+
+app.get('*', async (req, res) => {
+  let html = INDEX_HTML;
+  const m = req.path.match(/^\/s\/([0-9a-f-]{36})/);
+  if (m) {
+    try {
+      const { rows } = await pool.query('SELECT title, seed_prompt FROM streams WHERE id = $1', [m[1]]);
+      if (rows[0]) {
+        html = html
+          .replaceAll(DEFAULT_OG_TITLE, escapeHtml(`${rows[0].title || 'Infinite stream'} · Sona`))
+          .replaceAll(DEFAULT_OG_DESC, escapeHtml(`An endless AI-generated mix tuned to: “${rows[0].seed_prompt}”. Press play.`))
+          .replace('content="https://sona-l4zq.onrender.com/"', `content="https://sona-l4zq.onrender.com${req.path}"`);
+      }
+    } catch { /* default meta */ }
+  }
+  res.type('html').send(html);
+});
 
 const port = process.env.PORT || 3000;
 
