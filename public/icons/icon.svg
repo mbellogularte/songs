@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="fog" cx="50%" cy="42%" r="65%">
+      <stop offset="0%" stop-color="#7aa8c9" stop-opacity="0.85"/>
+      <stop offset="45%" stop-color="#3a5570" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#101216" stop-opacity="1"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" fill="#101216"/>
+  <rect width="512" height="512" fill="url(#fog)"/>
+  <text x="256" y="300" text-anchor="middle" font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
+        font-size="150" font-weight="100" letter-spacing="20" fill="#e6eaf2">S</text>
+</svg>

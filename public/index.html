@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Sona</title>
+  <meta name="description" content="Sona — a promptable infinite music stream" />
+  <meta name="theme-color" content="#101216" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <!-- fog scene -->
+  <div id="scene">
+    <div class="blob" id="blob0"></div>
+    <div class="blob" id="blob1"></div>
+    <div class="blob" id="blob2"></div>
+  </div>
+  <div id="vignette"></div>
+  <div id="grain"></div>
+
+  <!-- landing -->
+  <main id="landing">
+    <h1 class="wordmark">S O N A</h1>
+    <p class="tagline">an infinite stream, tuned to a single thought</p>
+    <form id="seed-form" autocomplete="off">
+      <input id="seed-input" type="text" placeholder="what do you want to hear?" maxlength="300" />
+      <div class="inputline"></div>
+    </form>
+  </main>
+
+  <!-- player -->
+  <main id="player" hidden>
+    <header id="stream-title"></header>
+
+    <section id="now">
+      <div id="now-state"></div>
+      <h2 id="now-title"></h2>
+      <p id="now-prompt"></p>
+      <div id="progress"><div id="progress-fill"></div></div>
+      <div id="controls">
+        <button id="btn-play" aria-label="play">
+          <svg viewBox="0 0 24 24"><path class="icon-play" d="M8 5v14l11-7z"/><g class="icon-pause" style="display:none"><path d="M7 5v14"/><path d="M17 5v14"/></g></svg>
+        </button>
+        <button id="btn-next" aria-label="next">
+          <svg viewBox="0 0 24 24"><path d="M6 5v14l8.5-7z"/><path d="M18 5v14"/></svg>
+        </button>
+      </div>
+    </section>
+
+    <section id="queue"></section>
+
+    <footer id="composer">
+      <div id="suggestions"></div>
+      <form id="prompt-form" autocomplete="off">
+        <input id="prompt-input" type="text" placeholder="where should it go next…" maxlength="300" />
+        <div class="inputline"></div>
+      </form>
+    </footer>
+  </main>
+
+  <!-- provider switch, deliberately quiet -->
+  <button id="btn-settings" aria-label="settings">·</button>
+  <div id="settings-panel" hidden>
+    <span>engine</span>
+    <button data-provider="lyria">lyria</button>
+    <button data-provider="elevenlabs">elevenlabs</button>
+  </div>
+
+  <audio id="audio" preload="auto"></audio>
+  <script src="/app.js"></script>
+</body>
+</html>
