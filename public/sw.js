@@ -1,5 +1,9 @@
-const SHELL_CACHE = 'sona-shell-v1';
-const SHELL = ['/', '/style.css', '/app.js', '/manifest.webmanifest', '/icons/icon.svg'];
+const SHELL_CACHE = 'sona-shell-v2';
+const SHELL = [
+  '/', '/style.css', '/app.js', '/visualizer.js',
+  '/vendor/pixi.min.mjs', '/vendor/gsap.min.js',
+  '/manifest.webmanifest', '/icons/icon.svg',
+];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(SHELL_CACHE).then((c) => c.addAll(SHELL)));

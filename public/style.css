@@ -31,20 +31,9 @@ input {
 }
 input::placeholder { color: var(--ink-fog); }
 
-/* ---------- fog scene ---------- */
-#scene { position: fixed; inset: -20%; z-index: 0; filter: blur(90px) saturate(1.15); }
-.blob {
-  position: absolute;
-  width: 55vmax; height: 55vmax;
-  border-radius: 50%;
-  mix-blend-mode: screen;
-  opacity: 0.5;
-  transition: background-color 4s ease;
-  will-change: transform, opacity;
-}
-#blob0 { background-color: var(--c0); left: 8%;  top: 12%; }
-#blob1 { background-color: var(--c1); right: 4%; top: 30%; width: 48vmax; height: 48vmax; }
-#blob2 { background-color: var(--c2); left: 28%; bottom: -6%; width: 62vmax; height: 62vmax; }
+/* ---------- the world (pixi canvas) ---------- */
+#scene { position: fixed; inset: 0; z-index: 0; }
+#scene canvas { display: block; width: 100%; height: 100%; }
 
 #vignette {
   position: fixed; inset: 0; z-index: 1; pointer-events: none;
@@ -140,6 +129,17 @@ form.thinking .inputline { animation: breathe 1.4s ease-in-out infinite; }
   height: 100%; width: 0%;
   background: linear-gradient(90deg, var(--c1), var(--c0));
   box-shadow: 0 0 12px 0 var(--glow);
+}
+
+#lyric {
+  min-height: 1.5em;
+  font-size: 0.95rem;
+  font-weight: 200;
+  letter-spacing: 0.12em;
+  color: var(--ink-dim);
+  text-shadow: 0 0 24px var(--glow);
+  max-width: min(640px, 86vw);
+  line-height: 1.5;
 }
 
 #controls { display: flex; gap: 2.6rem; align-items: center; margin-top: 0.3rem; }

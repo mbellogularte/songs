@@ -1,4 +1,6 @@
-/* Sona player — the fog breathes with the music. */
+/* Sona player — the world walks and breathes with the music. */
+
+import { initVisualizer, setScene, setPlaying, setVisual, setIntensity } from '/visualizer.js';
 
 const $ = (id) => document.getElementById(id);
 const audio = $('audio');
@@ -9,61 +11,107 @@ const state = {
   playedIds: new Set(),
   waiting: false,        // stream ran ahead of generation
   suggestionsFor: null,  // track id the current suggestions belong to
+  visual: null,          // AI visual script of the current track
+  visualFor: null,
+  lyricIdx: -1,
+  sectionT: undefined,
 };
 
-/* ---------------- fog engine ---------------- */
+/* AI visual script: scene spec + timed lyrics + section timeline */
+function applyVisual(track) {
+  if (!track?.visual || state.visualFor === track.id) return;
+  state.visualFor = track.id;
+  state.visual = track.visual;
+  state.lyricIdx = -1;
+  state.sectionT = undefined;
+  setVisual(track.visual.scene);
+}
+
+function syncTimeline() {
+  const v = state.visual;
+  if (!v) return;
+  const t = audio.currentTime;
+
+  const lines = v.lyrics || [];
+  let idx = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].t <= t) idx = i;
+    else break;
+  }
+  if (idx !== state.lyricIdx) {
+    state.lyricIdx = idx;
+    const text = idx >= 0 ? lines[idx].text : '';
+    const el = $('lyric');
+    if (window.gsap) {
+      window.gsap.to(el, {
+        opacity: 0, filter: 'blur(6px)', duration: 0.35, overwrite: 'auto',
+        onComplete: () => {
+          el.textContent = text;
+          window.gsap.to(el, { opacity: 1, filter: 'blur(0px)', duration: 0.9 });
+        },
+      });
+    } else {
+      el.textContent = text;
+    }
+  }
+
+  const secs = v.sections || [];
+  let cur = null;
+  for (const s of secs) {
+    if (s.t <= t) cur = s;
+    else break;
+  }
+  if (cur?.t !== state.sectionT) {
+    state.sectionT = cur?.t;
+    setIntensity(cur ? cur.intensity : null);
+  }
+}
+
+/* ---------------- audio analysis ---------------- */
 let audioCtx = null;
 let analyser = null;
 let freq = null;
-let smoothBass = 0;
-let smoothEnergy = 0;
 
 function connectAnalyser() {
   if (audioCtx) return;
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   const src = audioCtx.createMediaElementSource(audio);
   analyser = audioCtx.createAnalyser();
-  analyser.fftSize = 256;
-  analyser.smoothingTimeConstant = 0.85;
+  analyser.fftSize = 512;
+  analyser.smoothingTimeConstant = 0.8;
   src.connect(analyser);
   analyser.connect(audioCtx.destination);
   freq = new Uint8Array(analyser.frequencyBinCount);
 }
 
-const blobs = [$('blob0'), $('blob1'), $('blob2')];
-function fogLoop(t) {
-  let bass = 0;
-  let energy = 0;
-  if (analyser && !audio.paused) {
-    analyser.getByteFrequencyData(freq);
-    for (let i = 0; i < 10; i++) bass += freq[i];
-    bass /= 10 * 255;
-    for (let i = 0; i < freq.length; i++) energy += freq[i];
-    energy /= freq.length * 255;
-  }
-  smoothBass += (bass - smoothBass) * 0.06;
-  smoothEnergy += (energy - smoothEnergy) * 0.03;
-
-  const s = t / 1000;
-  blobs.forEach((b, i) => {
-    const drift = 30 + i * 12;
-    const x = Math.sin(s * 0.05 + i * 2.1) * drift;
-    const y = Math.cos(s * 0.04 + i * 1.3) * drift;
-    const scale = 1 + smoothBass * 0.35 + Math.sin(s * 0.08 + i) * 0.04;
-    b.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${scale})`;
-    b.style.opacity = (0.35 + smoothEnergy * 0.55).toFixed(3);
-  });
-  requestAnimationFrame(fogLoop);
+// live bands feeding the visualizer: bass / mid / high / overall energy, 0..1
+function getBands() {
+  if (!analyser || audio.paused) return { bass: 0, mid: 0, high: 0, energy: 0 };
+  analyser.getByteFrequencyData(freq);
+  const n = freq.length;
+  const avg = (a, b) => {
+    let s = 0;
+    for (let i = a; i < b; i++) s += freq[i];
+    return s / ((b - a) * 255);
+  };
+  return {
+    bass: avg(0, Math.floor(n * 0.08)),
+    mid: avg(Math.floor(n * 0.08), Math.floor(n * 0.4)),
+    high: avg(Math.floor(n * 0.4), n),
+    energy: avg(0, n),
+  };
 }
-requestAnimationFrame(fogLoop);
 
-function applyPalette(palette) {
+initVisualizer($('scene'), getBands).catch((err) => console.error('visualizer failed', err));
+
+function applyPalette(palette, energy) {
   const p = Array.isArray(palette) && palette.length ? palette : ['#3a4150', '#262b36', '#1a1e27'];
   const root = document.documentElement.style;
   root.setProperty('--c0', p[0]);
   root.setProperty('--c1', p[1] || p[0]);
   root.setProperty('--c2', p[2] || p[1] || p[0]);
   root.setProperty('--glow', p[0] + '66');
+  setScene(p, energy ?? 0.5);
 }
 
 /* ---------------- api ---------------- */
@@ -145,7 +193,19 @@ async function playTrack(track) {
   } catch (err) {
     console.error('play blocked', err);
   }
-  applyPalette(track.palette);
+  applyPalette(track.palette, track.energy);
+  state.visual = null;
+  state.lyricIdx = -1;
+  $('lyric').textContent = '';
+  setIntensity(null);
+  applyVisual(track);
+  if (window.gsap) {
+    window.gsap.fromTo(
+      '#now-title',
+      { opacity: 0, filter: 'blur(10px)', y: 8 },
+      { opacity: 1, filter: 'blur(0px)', y: 0, duration: 2.2, ease: 'power2.out' }
+    );
+  }
   api(`/api/streams/${state.stream.id}/advance`, { method: 'POST', body: { trackId: track.id } }).catch(() => {});
   if ('mediaSession' in navigator) {
     navigator.mediaSession.metadata = new MediaMetadata({
@@ -184,14 +244,17 @@ audio.addEventListener('timeupdate', () => {
   if (audio.duration) {
     $('progress-fill').style.width = `${(audio.currentTime / audio.duration) * 100}%`;
   }
+  syncTimeline();
 });
 audio.addEventListener('play', () => {
   document.querySelector('.icon-play').style.display = 'none';
   document.querySelector('.icon-pause').style.display = '';
+  setPlaying(true);
 });
 audio.addEventListener('pause', () => {
   document.querySelector('.icon-play').style.display = '';
   document.querySelector('.icon-pause').style.display = 'none';
+  setPlaying(false);
 });
 
 $('btn-play').addEventListener('click', () => {
@@ -229,6 +292,7 @@ function render() {
   $('stream-title').textContent = s.title || s.seed_prompt;
 
   const cur = currentTrack();
+  if (cur) applyVisual(cur); // visual script may arrive after playback started
   if (cur) {
     $('now-state').textContent = 'now playing';
     $('now-title').textContent = cur.title || cur.prompt;

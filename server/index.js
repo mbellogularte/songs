@@ -10,7 +10,7 @@ const app = express();
 app.use(express.json());
 
 const TRACK_COLUMNS = `id, stream_id, position, prompt, source, title, palette, energy,
-  provider, status, error, mime, duration_ms, created_at`;
+  provider, status, error, mime, duration_ms, visual, created_at`;
 
 app.get('/api/health', async (_req, res) => {
   try {
@@ -69,6 +69,10 @@ app.get('/api/streams/:id', async (req, res) => {
     `SELECT ${TRACK_COLUMNS} FROM tracks WHERE stream_id = $1 ORDER BY position ASC`,
     [req.params.id]
   );
+  // lazily backfill visual scripts for tracks generated before this feature
+  for (const t of tracks) {
+    if (t.status === 'ready' && !t.visual) engine.ensureVisual(t.id).catch(() => {});
+  }
   res.json({ ...streams[0], tracks });
 });
 

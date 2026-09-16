@@ -44,6 +44,8 @@ export async function initDb() {
       created_at  timestamptz NOT NULL DEFAULT now()
     );
 
+    ALTER TABLE tracks ADD COLUMN IF NOT EXISTS visual jsonb;
+
     CREATE INDEX IF NOT EXISTS tracks_stream_pos ON tracks (stream_id, position);
     CREATE INDEX IF NOT EXISTS tracks_status ON tracks (status);
   `);

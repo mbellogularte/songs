@@ -12,12 +12,8 @@
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
-  <!-- fog scene -->
-  <div id="scene">
-    <div class="blob" id="blob0"></div>
-    <div class="blob" id="blob1"></div>
-    <div class="blob" id="blob2"></div>
-  </div>
+  <!-- the world: pixi-rendered silhouette scene -->
+  <div id="scene"></div>
   <div id="vignette"></div>
   <div id="grain"></div>
 
@@ -40,6 +36,7 @@
       <h2 id="now-title"></h2>
       <p id="now-prompt"></p>
       <div id="progress"><div id="progress-fill"></div></div>
+      <p id="lyric"></p>
       <div id="controls">
         <button id="btn-play" aria-label="play">
           <svg viewBox="0 0 24 24"><path class="icon-play" d="M8 5v14l11-7z"/><g class="icon-pause" style="display:none"><path d="M7 5v14"/><path d="M17 5v14"/></g></svg>
@@ -70,6 +67,7 @@
   </div>
 
   <audio id="audio" preload="auto"></audio>
-  <script src="/app.js"></script>
+  <script src="/vendor/gsap.min.js"></script>
+  <script type="module" src="/app.js"></script>
 </body>
 </html>

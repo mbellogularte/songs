@@ -28,6 +28,13 @@
 - Filmkorn (animierte SVG-Turbulence) + Vignette über allem; Typografie dünn, klein, niedriger Kontrast — nur der laufende Track ist voll lesbar.
 - Queue = Silhouetten, die ins Licht treten (siehe oben). Vorschläge = halbtransparente Formen, die sich aus dem Nebel lösen. Prompt-Feld = eine einzelne dünne, glühende Linie in der aktuellen Track-Farbe.
 
+## KI-generierte Visuals (v2)
+
+- Die Szene ist ein endloser, seitwärts scrollender Silhouetten-Platformer (PixiJS v8, WebGL): Terrain-Layer mit Parallaxe + Tiefenschärfe, Lichtquelle, Partikel, Vogelschwärme — choreografiert mit GSAP.
+- **Gemini hört jeden fertigen Track** (Audio-Input) und schreibt ein Visual-Script: Szenen-Spec (Boden-Stil, Silhouetten-Elemente wie Kakteen/Skyline/Ruinen/Bäume, Himmel mit Sonne/Mond/Sternen, Wetter wie Regen/Schnee/Glut/Staub, Beat-Effekt), eine Sektions-Timeline (Intro/Drop/… mit Intensität) und — falls gesungen wird — **transkribierte Lyrics mit Timestamps**.
+- Der Player synct das Script live zur Musik: Lyrics blenden zeilenweise ein, Sektionen steuern Tempo & Lichtintensität der Welt, Beats triggern Flares/Lightning/Bursts, Bass/Höhen treiben Licht & Partikel über den Web-Audio-Analyser.
+- Trackwechsel = die Welt läuft in die nächste Szene (kein Cut).
+
 ## Tech-Stack & Deployment
 
 - Node 20+/Express, `pg`, kein Build-Step; Vanilla-JS-Frontend als **PWA** (Manifest, Service Worker, installierbar, Media-Session für Lockscreen-Controls).

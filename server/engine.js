@@ -71,12 +71,38 @@ async function generateTrack(track) {
       [track.id, audio, mime, durationMs]
     );
     console.log(`[engine] track ${track.id} ready (${audio.length} bytes, ~${Math.round(durationMs / 1000)}s)`);
+    ensureVisual(track.id).catch(() => {});
   } catch (err) {
     console.error(`[engine] track ${track.id} failed:`, err.message);
     await pool.query(`UPDATE tracks SET status = 'failed', error = $2 WHERE id = $1`, [
       track.id,
       String(err.message).slice(0, 500),
     ]);
+  }
+}
+
+// Gemini listens to the finished audio and scripts the track's visuals
+// (scene spec + section timeline + timed lyrics). Fire-and-forget with an
+// in-flight guard so lazy backfills don't double-analyze.
+const analyzing = new Set();
+export async function ensureVisual(trackId) {
+  if (analyzing.has(trackId)) return;
+  analyzing.add(trackId);
+  try {
+    const { rows } = await pool.query(
+      `SELECT audio, mime, prompt, title FROM tracks WHERE id = $1 AND status = 'ready' AND visual IS NULL`,
+      [trackId]
+    );
+    if (!rows.length || !rows[0].audio) return;
+    const t = rows[0];
+    console.log(`[engine] scripting visuals for ${trackId}`);
+    const visual = await brain.analyzeTrack(t.audio, t.mime, `"${t.title || ''}" — ${t.prompt}`);
+    await pool.query(`UPDATE tracks SET visual = $2 WHERE id = $1`, [trackId, JSON.stringify(visual)]);
+    console.log(`[engine] visuals ready for ${trackId}: ${visual.scene?.world || '?'}`);
+  } catch (err) {
+    console.error(`[engine] visual analysis failed for ${trackId}:`, err.message);
+  } finally {
+    analyzing.delete(trackId);
   }
 }
 
