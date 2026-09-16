@@ -373,11 +373,9 @@ async function playTrack(track, fadeSec = 0) {
   connectAnalyser();
   audioCtx?.resume();
   if (next.gain) next.gain.gain.value = fadeSec > 0 ? 0 : 1;
-  try {
-    await next.el.play();
-  } catch (err) {
-    console.error('play blocked', err);
-  }
+  // switch decks BEFORE play(): the 'play'/'timeupdate' events fire against
+  // deck() and would otherwise be routed to the old deck and dropped —
+  // leaving the icon on ▶ and the seek bar frozen while music plays
   active = nextIdx;
   if (audioCtx && prevIdx !== nextIdx) {
     ramp(next.gain, 1, fadeSec || 0.05);
@@ -387,6 +385,10 @@ async function playTrack(track, fadeSec = 0) {
       prev.el.removeAttribute('src');
     }, (fadeSec || 0.05) * 1000 + 150);
   }
+  next.el.play().catch((err) => {
+    console.error('play blocked', err);
+    updatePlayIcon(false); // surface the real state: ready but needs a tap
+  });
 
   applyPalette(track.palette, track.energy);
   state.visual = null;
