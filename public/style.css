@@ -425,11 +425,11 @@ form.thinking input { animation: thinkpulse 1.2s ease-in-out infinite; }
 
 /* ---------- settings ---------- */
 #btn-settings {
-  position: fixed; left: 0.9rem; bottom: 0.8rem; z-index: 10;
+  position: fixed; right: 0.7rem; top: max(0.5rem, env(safe-area-inset-top)); z-index: 10;
   color: var(--ink-faint); font-size: 1.5rem; line-height: 1; padding: 0.3rem 0.55rem;
 }
 #settings-panel {
-  position: fixed; left: 0.9rem; bottom: 3rem; z-index: 10;
+  position: fixed; right: 0.7rem; top: 3rem; z-index: 10;
   display: flex; gap: 0.5rem; align-items: center;
   font-size: 0.75rem; font-weight: 600; color: var(--ink-faint);
   background: rgba(16, 18, 22, 0.92);

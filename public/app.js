@@ -711,7 +711,9 @@ function renderQueue() {
         setTimeout(() => el.classList.remove('row-in'), 700);
       }
     }
-    el.querySelector('.qtitle').textContent = t.title || t.prompt;
+    // auto tracks keep their machine-written prompt private — the listener
+    // only ever sees the finished title
+    el.querySelector('.qtitle').textContent = t.title || (t.source === 'auto' ? 'Next track' : t.prompt);
     el.querySelector('.qsub').textContent =
       t.source === 'auto' ? 'Sona · auto mix' : t.source === 'suggestion' ? 'Sona · from a suggestion' : 'Sona · your prompt';
     const bg = thumbStyle(t);
