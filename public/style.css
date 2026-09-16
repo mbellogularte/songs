@@ -448,6 +448,12 @@ body.mood-electric #vignette { background: radial-gradient(ellipse at 50% 40%, t
 
 /* short screens (phones with browser chrome): tighten everything so the
    player always fits without scrolling */
+/* touch devices: inputs must be ≥16px or iOS zooms in on focus and leaves
+   the whole app scrolled/zoomed */
+@media (pointer: coarse) {
+  #seed-form input, #prompt-form input { font-size: 16px !important; }
+}
+
 @media (max-height: 760px) {
   #player { padding-top: max(0.5rem, env(safe-area-inset-top)); }
   #topbar { padding-bottom: 0.25rem; }
