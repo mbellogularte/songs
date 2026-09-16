@@ -152,9 +152,12 @@ app.get('/api/stats', async (_req, res) => {
             COALESCE(sum(duration_ms) FILTER (WHERE status = 'ready'), 0)::bigint AS ms
      FROM tracks`
   );
+  // fallback titles are just the prompt's first words — never surface those
+  // publicly, only real generated titles
   const { rows: recent } = await pool.query(
     `SELECT title, visual->'scene'->>'world' AS world
-     FROM tracks WHERE status = 'ready' AND title IS NOT NULL
+     FROM tracks
+     WHERE status = 'ready' AND title IS NOT NULL AND prompt NOT ILIKE title || '%'
      ORDER BY created_at DESC LIMIT 14`
   );
   statsCache = { at: Date.now(), data: { ...totals[0], recent } };
