@@ -101,14 +101,22 @@ function ramp(gainNode, to, sec) {
 function getBands() {
   if (deck().el.paused) return { bass: 0, mid: 0, high: 0, energy: 0 };
   if (!analyser) {
-    // no WebAudio (iOS): synthesize a musical pulse so the world still breathes
-    const t = performance.now() / 1000;
-    const beat = Math.max(0, Math.sin(t * Math.PI * 4)) ** 3; // ~120bpm
+    // no WebAudio (iOS): synthesize a pulse locked to the track's real tempo
+    // (Gemini estimates the BPM) and scaled by the current section intensity
+    const ct = deck().el.currentTime;
+    const bpm = state.visual?.bpm || 120;
+    let drive = 0.55;
+    const secs = state.visual?.sections || [];
+    for (const s of secs) {
+      if (s.t <= ct) drive = s.intensity;
+      else break;
+    }
+    const beat = Math.max(0, Math.sin(ct * Math.PI * 2 * (bpm / 60))) ** 3;
     return {
-      bass: 0.22 + beat * 0.42,
-      mid: 0.3 + 0.12 * Math.sin(t * 1.3),
-      high: 0.24 + 0.16 * Math.sin(t * 3.7 + 1),
-      energy: 0.34 + 0.12 * Math.sin(t * 0.4),
+      bass: 0.16 + beat * (0.25 + drive * 0.4),
+      mid: 0.22 + drive * 0.18 + 0.08 * Math.sin(ct * 1.3),
+      high: 0.18 + drive * 0.15 + 0.1 * Math.sin(ct * 3.7 + 1),
+      energy: 0.2 + drive * 0.35 + 0.06 * Math.sin(ct * 0.4),
     };
   }
   analyser.getByteFrequencyData(freq);

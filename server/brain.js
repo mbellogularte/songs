@@ -137,6 +137,7 @@ export async function suggestions(seedPrompt, history) {
 const VISUAL_SCHEMA = {
   type: 'object',
   properties: {
+    bpm: { type: 'number', description: 'estimated tempo of the track in BPM' },
     vocals: { type: 'boolean', description: 'true if the track has sung vocals' },
     lyrics: {
       type: 'array',
