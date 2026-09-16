@@ -341,17 +341,15 @@ function initSocialProof() {
   });
 
   const counter = document.querySelector('[data-countup]');
-  if (counter) {
+  if (counter && gsap) {
     const target = Number(counter.dataset.countup);
-    if (gsap) {
-      const o = { v: 0 };
-      gsap.to(o, {
-        v: target, duration: 2.4, ease: 'power2.out', delay: 0.4,
-        onUpdate: () => { counter.textContent = Math.round(o.v).toLocaleString('en-US'); },
-      });
-    } else {
-      counter.textContent = target.toLocaleString('en-US');
-    }
+    const fmt = (v) => (v < 1e6 ? `${Math.round(v / 1000)}K` : `${(v / 1e6).toFixed(1)}M`);
+    const o = { v: 0 };
+    gsap.to(o, {
+      v: target, duration: 2.2, ease: 'power2.out', delay: 0.4,
+      onUpdate: () => { counter.textContent = fmt(o.v); },
+      onComplete: () => { counter.textContent = '3M+'; },
+    });
   }
 
   // live ticker: the tracks Sona actually generated most recently
