@@ -4,7 +4,7 @@
 // if the LLM call fails so the music engine never stalls.
 
 const API = 'https://generativelanguage.googleapis.com/v1beta';
-const MODEL = process.env.BRAIN_MODEL || 'gemini-2.5-flash';
+const MODEL = process.env.BRAIN_MODEL || 'gemini-3.6-flash';
 
 async function ask(system, user, schema) {
   const res = await fetch(`${API}/models/${MODEL}:generateContent?key=${process.env.GEMINI_API_KEY}`, {
@@ -66,7 +66,11 @@ export async function trackMeta(prompt, historyTitles = []) {
       `Listener prompt: "${prompt}"\nRecent tracks in this stream: ${historyTitles.join(', ') || '(none)'}`,
       META_SCHEMA
     );
-    if (!Array.isArray(meta.palette) || meta.palette.length < 2) meta.palette = fallbackPalette(prompt);
+    // Models sometimes annotate colors ("#FFB703 bright amber") — keep only the hex.
+    meta.palette = (Array.isArray(meta.palette) ? meta.palette : [])
+      .map((c) => String(c).match(/#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3}/)?.[0])
+      .filter(Boolean);
+    if (meta.palette.length < 2) meta.palette = fallbackPalette(prompt);
     meta.energy = Math.max(0, Math.min(1, Number(meta.energy) || 0.5));
     return meta;
   } catch (err) {
