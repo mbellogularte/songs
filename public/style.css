@@ -119,17 +119,30 @@ main { position: relative; z-index: 3; height: 100dvh; display: flex; flex-direc
 }
 .tagline { font-size: 1rem; color: var(--ink-sub); font-weight: 500; margin-bottom: 1.6rem; }
 
-#seed-form { width: min(560px, 88vw); }
+#seed-form {
+  position: relative;
+  width: min(560px, 88vw);
+  display: flex; align-items: center;
+}
 #seed-form input {
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 500px;
-  padding: 1rem 1.6rem;
+  padding: 1rem 3.8rem 1rem 1.6rem;
   font-size: 1.05rem;
   font-weight: 600;
   text-align: center;
   transition: border-color 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
 }
+#seed-send {
+  position: absolute; right: 0.55rem;
+  width: 42px; height: 42px; border-radius: 50%;
+  background: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.12s ease;
+}
+#seed-send:hover { transform: scale(1.08); }
+#seed-send svg { width: 18px; height: 18px; fill: none; stroke: #0b0c10; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
 #seed-form input:focus {
   border-color: var(--accent);
   background: rgba(255, 255, 255, 0.11);

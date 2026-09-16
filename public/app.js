@@ -35,25 +35,34 @@ const deck = () => decks[active];
 function mkDeck() {
   const el = new Audio();
   el.preload = 'auto';
+  el.setAttribute('playsinline', '');
+  // iOS is happier with media elements that live in the document
+  (document.body || document.documentElement).appendChild(el);
   return { el, gain: null, unlocked: false };
 }
 
-// iOS Safari only allows .play() on elements once unlocked by a user gesture —
-// prime BOTH decks on the first gesture so crossfades and auto-advance work.
-const SILENCE = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=';
+// iOS Safari only allows .play() on elements once activated by a user gesture.
+// A synchronous load() during the gesture activates the element WITHOUT
+// consuming the gesture's one allowed play() — never play() here, or the
+// real playback in the same tap gets blocked.
+const SILENCE = 'data:audio/wav;base64,UklGRiYAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQIAAAAAAA==';
 function unlockDecks() {
   for (const d of decks) {
-    if (d.unlocked || d.el.src) continue;
-    d.el.src = SILENCE;
-    d.el.play().then(() => {
-      d.el.pause();
-      d.el.removeAttribute('src');
+    if (d.unlocked) continue;
+    try {
+      if (!d.el.src) d.el.src = SILENCE;
+      d.el.load();
       d.unlocked = true;
-    }).catch(() => {
-      d.el.removeAttribute('src');
-    });
+    } catch { /* ignore */ }
   }
 }
+
+// any first touch anywhere: create/resume the audio context + activate decks
+document.addEventListener('pointerdown', () => {
+  connectAnalyser();
+  unlockDecks();
+  audioCtx?.resume();
+}, { passive: true });
 
 function connectAnalyser() {
   if (audioCtx) return;
