@@ -62,7 +62,7 @@ const META_SCHEMA = {
 export async function trackMeta(prompt, historyTitles = []) {
   try {
     const meta = await ask(
-      'You are the music director of an infinite AI music stream. Given a listener prompt, produce track metadata. The palette is the "light" of the scene: warm amber for soul, cold cyan for ambient, magenta/violet for club — pick colors that genuinely match the sound. Answer in the language-neutral: title can be English.',
+      'You are the music director of an infinite AI music stream. Given a listener prompt, produce track metadata. The palette is the "light" of the scene: warm amber for soul, cold cyan for ambient, magenta/violet for club — pick colors that genuinely match the sound. IMPORTANT: never put real artist names into musicPrompt (generation models refuse them) — translate artist references into a rich description of their sound instead. Title can be English.',
       `Listener prompt: "${prompt}"\nRecent tracks in this stream: ${historyTitles.join(', ') || '(none)'}`,
       META_SCHEMA
     );

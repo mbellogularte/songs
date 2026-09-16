@@ -45,6 +45,7 @@ export async function initDb() {
     );
 
     ALTER TABLE tracks ADD COLUMN IF NOT EXISTS visual jsonb;
+    ALTER TABLE tracks ADD COLUMN IF NOT EXISTS attempts integer NOT NULL DEFAULT 0;
 
     CREATE INDEX IF NOT EXISTS tracks_stream_pos ON tracks (stream_id, position);
     CREATE INDEX IF NOT EXISTS tracks_status ON tracks (status);

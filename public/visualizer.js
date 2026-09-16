@@ -6,7 +6,7 @@
    pace, bass pushes the light, beats spark, sections steer the mood. */
 
 import {
-  Application, Container, Graphics, Sprite, Texture, BlurFilter, Rectangle,
+  Application, Container, Graphics, Sprite, Texture, BlurFilter,
 } from '/vendor/pixi.min.mjs';
 
 const BG = 0x101216;
@@ -210,7 +210,10 @@ function dotTexture(size = 32) {
 /* ---------- terrain layers ---------- */
 function makeLayer({ name, parallax, baseY, amp, freq, blur, seed }) {
   const container = new Container();
-  if (blur) container.filters = [new BlurFilter({ strength: blur, quality: 2 })];
+  // filter resolution pinned to 1: at renderer resolution 2 Pixi's filter
+  // frame math breaks (renders only a quarter of the area) — and a blur
+  // doesn't need retina resolution anyway
+  if (blur) container.filters = [new BlurFilter({ strength: blur, quality: 2, resolution: 1 })];
   const hash = (i) => {
     const x = Math.sin(i * 127.1 + (seed * 7 + 3) * 311.7) * 43758.5453;
     return x - Math.floor(x);
@@ -291,15 +294,11 @@ function ensureChunks(layer, H, W) {
       layer.edge.delete(i);
     }
   }
-  layer.container.x = -px;
-  // keep the blur filter's render region glued to the viewport (local coords)
-  if (layer.container.filters) {
-    if (!layer.container.filterArea) layer.container.filterArea = new Rectangle();
-    const fa = layer.container.filterArea;
-    fa.x = px - 40;
-    fa.y = -40;
-    fa.width = W + 80;
-    fa.height = H + 80;
+  // The container stays at 0 and each chunk scrolls itself. This keeps the
+  // container's bounds pinned to the viewport, so the blur filters get a
+  // correct render region at every device pixel ratio — no filterArea math.
+  for (const [i, g] of layer.chunks) {
+    g.x = i * CHUNK_W - px;
   }
 }
 
@@ -394,9 +393,7 @@ export async function initVisualizer(mount, getBands) {
     background: BG,
     antialias: true,
     preference: 'webgl',
-    // resolution locked to 1: blur filterArea math breaks at DPR 2 (scene only
-    // renders top-left), and the foggy aesthetic doesn't need retina anyway
-    resolution: 1,
+    resolution: Math.min(window.devicePixelRatio || 1, 2),
     autoDensity: true,
   });
   mount.appendChild(app.canvas);
@@ -405,8 +402,9 @@ export async function initVisualizer(mount, getBands) {
   S.cur = JSON.parse(JSON.stringify(IDLE));
   S.target = JSON.parse(JSON.stringify(IDLE));
 
-  const H = () => app.renderer.height / app.renderer.resolution;
-  const W = () => app.renderer.width / app.renderer.resolution;
+  // Pixi v8: renderer.width/height are already logical (CSS) units
+  const H = () => app.renderer.height;
+  const W = () => app.renderer.width;
 
   const lightTex = radialTexture();
   S.fireflyTex = dotTexture();
@@ -593,7 +591,16 @@ export async function initVisualizer(mount, getBands) {
     S.flash.tint = rgbToInt(mix(S.cur.light, [255, 255, 255], 0.7).map(Math.round));
   });
 
-  window.addEventListener('resize', () => rebuildStars(W(), H()));
+  window.addEventListener('resize', () => {
+    rebuildStars(W(), H());
+    // terrain bakes the viewport height into each chunk — rebuild on resize
+    for (const layer of S.layers) {
+      for (const g of layer.chunks.values()) g.destroy();
+      layer.chunks.clear();
+      layer.edge.clear();
+    }
+  });
+  window.__sona = S; // debug hook
   return true;
 }
 

@@ -212,6 +212,55 @@ async function api(path, opts = {}) {
   return res.json();
 }
 
+/* ================= landing: floating genre prompts ================= */
+const GENRES = [
+  'Afro House', 'Speed Garage', 'Sammy Virji x KETTAMA', 'Jump-Up Drum & Bass', 'Hard Techno',
+  'Hard Dance', 'Melodic House', 'French House', 'Latin House', 'Brazilian Funk', 'Amapiano',
+  'Dungeon Synth', 'Comfy Synth', 'Blackgaze', 'Breakcore / Footwork Jungle', 'Deconstructed Club',
+  'Neo-Microhouse', 'Krushclub', 'Sigilkore', 'Odetari x 6arelyhuman', 'Hyperpop-Adjacent / Digicore',
+  'Oklou x Danny L Harle', 'PluggnB', 'Summrs x Kankan', 'Rage', 'Trap EDM', 'Boom Bap Revival',
+  'UK Underground Rap', 'EsDeeKid x fakemink', 'Sexy Drill', 'Cash Cobain x Ice Spice',
+  'Baltimore Club-Rap', 'Neoperreo', 'AKRIILA', 'Vinahouse', 'Funkot / Indobounce', 'Bedroom Pop',
+  'Japanese City Pop', '50s Vocal Revival', 'Cinematic Score',
+];
+
+// scattered slots around the edges, clear of the logo + input in the middle
+const FLOAT_SLOTS = [
+  [18, 14], [50, 9], [82, 15], [10, 34], [90, 33],
+  [14, 66], [86, 68], [30, 84], [58, 88], [78, 82],
+];
+
+function seedFloatingPrompts() {
+  const box = $('float-prompts');
+  if (!box || box.children.length) return;
+  const small = window.innerWidth < 640;
+  const slots = small ? FLOAT_SLOTS.filter((_, i) => i % 2 === 0).concat([[58, 88]]) : FLOAT_SLOTS;
+  const picks = [...GENRES].sort(() => Math.random() - 0.5).slice(0, slots.length);
+  picks.forEach((genre, i) => {
+    const chip = document.createElement('button');
+    chip.className = 'float-chip';
+    chip.textContent = genre;
+    chip.style.left = `${slots[i][0]}%`;
+    chip.style.top = `${slots[i][1]}%`;
+    chip.addEventListener('click', () => {
+      $('seed-input').value = genre;
+      $('seed-form').requestSubmit();
+    });
+    box.appendChild(chip);
+    if (gsap) {
+      gsap.to(chip, { opacity: 1, duration: 1.4, delay: 0.3 + i * 0.15, ease: 'power2.out' });
+      gsap.to(chip, {
+        x: `random(-14, 14)`, y: `random(-12, 12)`,
+        duration: 'random(4, 7)', delay: i * 0.2,
+        yoyo: true, repeat: -1, repeatRefresh: true, ease: 'sine.inOut',
+      });
+    } else {
+      chip.style.opacity = 1;
+    }
+  });
+}
+seedFloatingPrompts();
+
 /* ================= stream lifecycle ================= */
 $('seed-form').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -431,9 +480,15 @@ function render() {
   if (cur) {
     $('now-state').textContent = 'Now playing';
     setTitle(cur.title || cur.prompt);
+    $('now-hint').textContent = '';
   } else if (state.waiting || !s.tracks.some((t) => t.status === 'ready')) {
-    $('now-state').textContent = 'Generating …';
-    setTitle(upcoming()[0]?.title || upcoming()[0]?.prompt || s.seed_prompt);
+    // stay neutral until a track is actually ready — no committing to a song
+    // that might still fail, no buggy title switches
+    $('now-state').textContent = 'Generating';
+    setTitle(s.title || s.seed_prompt);
+    $('now-hint').textContent = state.playedIds.size
+      ? 'The next track is on its way …'
+      : 'The first track takes a little longer — usually ready within a minute.';
   }
 
   renderQueue();
@@ -466,6 +521,7 @@ function renderQueue() {
   const container = $('queue');
   const tracks = [...allTracks(), ...state.pending];
   const seen = new Set();
+  const animateNew = state.queueRendered; // no entry animation on first paint
 
   tracks.forEach((t) => {
     seen.add(t.id);
@@ -477,7 +533,13 @@ function renderQueue() {
       el.innerHTML = `<div class="qthumb"></div><div class="qmain"><span class="qtitle"></span><span class="qsub"></span></div><span class="qmeta"></span>`;
       container.appendChild(el);
       makeDraggable(el);
-      if (t.optimistic) gsap?.from(el, { opacity: 0, y: -8, duration: 0.4, ease: 'power2.out' });
+      if (animateNew && gsap) {
+        gsap.from(el, {
+          height: 0, opacity: 0, paddingTop: 0, paddingBottom: 0,
+          duration: 0.55, ease: 'power2.out',
+          clearProps: 'height,paddingTop,paddingBottom',
+        });
+      }
     }
     el.querySelector('.qtitle').textContent = t.title || t.prompt;
     el.querySelector('.qsub').textContent =
@@ -504,6 +566,7 @@ function renderQueue() {
   [...container.children].forEach((el) => {
     if (!seen.has(el.dataset.id)) el.remove();
   });
+  state.queueRendered = true;
 }
 
 /* ================= drag to reorder ================= */

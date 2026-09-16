@@ -79,7 +79,30 @@ input::placeholder { color: var(--ink-faint); font-weight: 500; }
 main { position: relative; z-index: 3; height: 100dvh; display: flex; flex-direction: column; }
 
 /* ---------- landing ---------- */
-#landing { align-items: center; justify-content: center; gap: 1.1rem; padding: 2rem; }
+#landing { position: relative; align-items: center; justify-content: center; gap: 1.1rem; padding: 2rem; }
+
+#float-prompts { position: absolute; inset: 0; pointer-events: none; }
+.float-chip {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  font-family: var(--font);
+  font-size: 0.8rem; font-weight: 600;
+  color: var(--ink-sub);
+  padding: 0.48rem 1.05rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 500px;
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(8px);
+  white-space: nowrap;
+  opacity: 0;
+  transition: color 0.25s ease, border-color 0.25s ease, background 0.25s ease;
+}
+.float-chip:hover {
+  color: var(--ink);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
 .wordmark {
   font-size: clamp(3rem, 8vw, 4.6rem);
   font-weight: 800;
@@ -136,6 +159,13 @@ form.thinking input { animation: thinkpulse 1.2s ease-in-out infinite; }
 }
 #now-title.long { font-size: clamp(1.15rem, 4.6vw, 2rem); }
 #now-title.xlong { font-size: clamp(1rem, 3.8vw, 1.6rem); }
+#now-hint {
+  font-size: 0.8rem; font-weight: 500;
+  color: var(--ink-sub);
+  min-height: 1.2em;
+  max-width: min(560px, 88vw);
+  margin: 0 auto;
+}
 
 /* ---------- center stage: lyrics ---------- */
 #stage {
@@ -218,7 +248,7 @@ form.thinking input { animation: thinkpulse 1.2s ease-in-out infinite; }
 /* ---------- queue: Spotify rows, silhouettes stepping into the light ---------- */
 #queue-wrap {
   flex: 0 0 auto;
-  max-height: 26vh;
+  height: 26vh; /* fixed so the layout never jumps as tracks stream in */
   display: flex; flex-direction: column;
   width: min(640px, 94vw);
   margin: 0 auto;
@@ -364,7 +394,6 @@ body.mood-electric #grain { opacity: 0.08; }
 body.mood-electric #vignette { background: radial-gradient(ellipse at 50% 40%, transparent 40%, rgba(4, 5, 8, 0.6) 85%, rgba(2, 3, 5, 0.92) 100%); }
 
 @media (max-width: 640px) {
-  #queue-wrap { max-height: 22vh; }
+  #queue-wrap { height: 22vh; }
   #btn-play { width: 46px; height: 46px; }
-  #designer-credit { max-width: 46vw; }
 }

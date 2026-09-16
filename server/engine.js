@@ -74,10 +74,19 @@ async function generateTrack(track) {
     ensureVisual(track.id).catch(() => {});
   } catch (err) {
     console.error(`[engine] track ${track.id} failed:`, err.message);
-    await pool.query(`UPDATE tracks SET status = 'failed', error = $2 WHERE id = $1`, [
-      track.id,
-      String(err.message).slice(0, 500),
-    ]);
+    // one automatic retry before giving up — providers occasionally refuse a
+    // phrasing (e.g. artist names) and the brain rephrases on every attempt
+    const { rows } = await pool.query(
+      `UPDATE tracks SET attempts = attempts + 1,
+         status = CASE WHEN attempts + 1 < 2 THEN 'queued' ELSE 'failed' END,
+         error = $2
+       WHERE id = $1 RETURNING status`,
+      [track.id, String(err.message).slice(0, 500)]
+    );
+    if (rows[0]?.status === 'queued') {
+      console.log(`[engine] retrying track ${track.id}`);
+      kick();
+    }
   }
 }
 
