@@ -224,40 +224,72 @@ const GENRES = [
   'Japanese City Pop', '50s Vocal Revival', 'Cinematic Score',
 ];
 
-// scattered slots around the edges, clear of the logo + input in the middle
-const FLOAT_SLOTS = [
-  [18, 14], [50, 9], [82, 15], [10, 34], [90, 33],
-  [14, 66], [86, 68], [30, 84], [58, 88], [78, 82],
-];
+// every prompt idea gets its own light, like generated tracks do — a stable
+// palette hashed from the name, shown as a little gradient thumb
+function promptPalette(text) {
+  let h = 0;
+  for (const c of text) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  const hue = h % 360;
+  return [`hsl(${hue}, 72%, 58%)`, `hsl(${(hue + 46) % 360}, 64%, 44%)`, `hsl(${(hue + 320) % 360}, 55%, 36%)`];
+}
+
+const rectsOverlap = (a, b, pad = 0) =>
+  a.x - pad < b.x + b.w && a.x + a.w + pad > b.x && a.y - pad < b.y + b.h && a.y + a.h + pad > b.y;
 
 function seedFloatingPrompts() {
   const box = $('float-prompts');
   if (!box || box.children.length) return;
-  const small = window.innerWidth < 640;
-  const slots = small ? FLOAT_SLOTS.filter((_, i) => i % 2 === 0).concat([[58, 88]]) : FLOAT_SLOTS;
-  const picks = [...GENRES].sort(() => Math.random() - 0.5).slice(0, slots.length);
-  picks.forEach((genre, i) => {
+  const W = window.innerWidth;
+  const H = window.innerHeight;
+  const count = W < 640 ? 6 : 10;
+  const picks = [...GENRES].sort(() => Math.random() - 0.5).slice(0, count + 4);
+  // keep clear of the logo / tagline / input column in the middle
+  const centerW = Math.min(700, W * 0.76);
+  const forbidden = { x: (W - centerW) / 2, y: H * 0.28, w: centerW, h: H * 0.46 };
+  const placed = [];
+
+  for (const genre of picks) {
+    if (placed.length >= count) break;
     const chip = document.createElement('button');
     chip.className = 'float-chip';
-    chip.textContent = genre;
-    chip.style.left = `${slots[i][0]}%`;
-    chip.style.top = `${slots[i][1]}%`;
+    const [c0, c1] = promptPalette(genre);
+    chip.innerHTML = `<span class="fthumb" style="background:linear-gradient(135deg, ${c0}, ${c1})"></span><span></span>`;
+    chip.lastChild.textContent = genre;
     chip.addEventListener('click', () => {
       $('seed-input').value = genre;
       $('seed-form').requestSubmit();
     });
     box.appendChild(chip);
+
+    // measure, then try random spots until one doesn't collide
+    const cw = chip.offsetWidth;
+    const ch = chip.offsetHeight;
+    let spot = null;
+    for (let t = 0; t < 60 && !spot; t++) {
+      const r = { x: 16 + Math.random() * (W - 32 - cw), y: 12 + Math.random() * (H - 24 - ch), w: cw, h: ch };
+      if (rectsOverlap(r, forbidden, 8)) continue;
+      if (placed.some((p) => rectsOverlap(r, p, 26))) continue;
+      spot = r;
+    }
+    if (!spot) {
+      chip.remove();
+      continue;
+    }
+    placed.push(spot);
+    chip.style.left = `${spot.x}px`;
+    chip.style.top = `${spot.y}px`;
+    const i = placed.length;
     if (gsap) {
-      gsap.to(chip, { opacity: 1, duration: 1.4, delay: 0.3 + i * 0.15, ease: 'power2.out' });
+      gsap.to(chip, { opacity: 1, duration: 1.4, delay: 0.3 + i * 0.13, ease: 'power2.out' });
       gsap.to(chip, {
-        x: `random(-14, 14)`, y: `random(-12, 12)`,
+        x: `random(-12, 12)`, y: `random(-10, 10)`,
         duration: 'random(4, 7)', delay: i * 0.2,
         yoyo: true, repeat: -1, repeatRefresh: true, ease: 'sine.inOut',
       });
     } else {
       chip.style.opacity = 1;
     }
-  });
+  }
 }
 seedFloatingPrompts();
 
@@ -476,6 +508,13 @@ function render() {
   if (!s) return;
 
   const cur = currentTrack();
+  // transport reflects real availability: spinner while nothing is playable,
+  // skip only lights up when a next track is actually ready
+  const playable = !!cur || !!nextReady();
+  $('btn-play').classList.toggle('loading', !playable);
+  $('btn-play').disabled = !playable;
+  $('btn-next').disabled = !nextReady();
+
   if (cur) applyVisual(cur); // visual script may arrive after playback started
   if (cur) {
     $('now-state').textContent = 'Now playing';
@@ -503,11 +542,11 @@ function setTitle(text) {
 }
 
 function thumbStyle(track) {
-  const p = track.palette;
-  if (Array.isArray(p) && p.length >= 2) {
-    return `linear-gradient(135deg, ${p[0]}, ${p[1]}${p[2] ? ', ' + p[2] : ''})`;
-  }
-  return '';
+  let p = track.palette;
+  // tracks that haven't been generated yet get the same hashed light as the
+  // floating prompt ideas — every entry has its own color from the start
+  if (!Array.isArray(p) || p.length < 2) p = promptPalette(track.prompt || '');
+  return `linear-gradient(135deg, ${p[0]}, ${p[1]}${p[2] ? ', ' + p[2] : ''})`;
 }
 
 const STATUS_LABEL = {

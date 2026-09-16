@@ -98,10 +98,19 @@ main { position: relative; z-index: 3; height: 100dvh; display: flex; flex-direc
   opacity: 0;
   transition: color 0.25s ease, border-color 0.25s ease, background 0.25s ease;
 }
+.float-chip {
+  display: flex; align-items: center; gap: 0.5rem;
+  transform: none;
+}
 .float-chip:hover {
   color: var(--ink);
   border-color: var(--accent);
   background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+.fthumb {
+  width: 17px; height: 17px;
+  border-radius: 5px;
+  flex-shrink: 0;
 }
 .wordmark {
   font-size: clamp(3rem, 8vw, 4.6rem);
@@ -240,10 +249,23 @@ form.thinking input { animation: thinkpulse 1.2s ease-in-out infinite; }
   display: flex; align-items: center; justify-content: center;
   transition: transform 0.12s ease;
 }
-#btn-play:hover { transform: scale(1.05); }
+#btn-play:hover:not(:disabled) { transform: scale(1.05); }
 #btn-play svg { width: 24px; height: 24px; fill: #0b0c10; }
+#btn-play:disabled { cursor: default; }
+#btn-play.loading svg { display: none; }
+#btn-play.loading::after {
+  content: '';
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(11, 12, 16, 0.2);
+  border-top-color: #0b0c10;
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 #btn-next svg { width: 26px; height: 26px; fill: var(--ink-sub); transition: fill 0.2s ease; }
-#btn-next:hover svg { fill: var(--ink); }
+#btn-next:hover:not(:disabled) svg { fill: var(--ink); }
+#btn-next:disabled { cursor: default; }
+#btn-next:disabled svg { fill: rgba(255, 255, 255, 0.16); }
 
 /* ---------- queue: Spotify rows, silhouettes stepping into the light ---------- */
 #queue-wrap {
