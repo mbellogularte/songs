@@ -1,6 +1,6 @@
 # Sona
 
-A promptable infinite music stream. Type a thought, get an endless AI-generated mix — every track composed live while the previous one plays.
+A promptable infinite music stream. Type a thought, get an endless generated mix. Every track composed live while the previous one plays.
 
 See [PLAN.md](PLAN.md) for the full concept, architecture and design language.
 

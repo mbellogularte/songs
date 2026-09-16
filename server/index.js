@@ -212,7 +212,7 @@ app.use(express.static(path.join(__dirname, '..', 'public'), {
 // title + prompt in their OpenGraph tags (WhatsApp, iMessage, Slack previews)
 const INDEX_HTML = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
 const DEFAULT_OG_TITLE = 'Sona — Infinite AI Music Stream';
-const DEFAULT_OG_DESC = 'Type a thought, get an endless AI-generated mix. Every track composed live — with its own world of visuals.';
+const DEFAULT_OG_DESC = 'Type a thought, get an endless generated mix. Every track composed live — with its own world of visuals.';
 const escapeHtml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
 
 app.get('*', async (req, res) => {
