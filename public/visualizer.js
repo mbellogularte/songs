@@ -394,7 +394,9 @@ export async function initVisualizer(mount, getBands) {
     background: BG,
     antialias: true,
     preference: 'webgl',
-    resolution: Math.min(window.devicePixelRatio || 1, 2),
+    // resolution locked to 1: blur filterArea math breaks at DPR 2 (scene only
+    // renders top-left), and the foggy aesthetic doesn't need retina anyway
+    resolution: 1,
     autoDensity: true,
   });
   mount.appendChild(app.canvas);

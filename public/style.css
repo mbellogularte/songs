@@ -117,12 +117,6 @@ form.thinking input { animation: thinkpulse 1.2s ease-in-out infinite; }
   padding: 0.2rem 0.2rem 0.6rem;
 }
 #topbar .logo { font-weight: 800; font-size: 1.15rem; letter-spacing: -0.02em; }
-#designer-credit {
-  font-size: 0.72rem; font-weight: 600;
-  color: var(--ink-faint);
-  max-width: 60vw;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
 
 #now { text-align: center; padding: clamp(0.3rem, 2vh, 1.2rem) 0 0; }
 #now-state {
@@ -131,20 +125,17 @@ form.thinking input { animation: thinkpulse 1.2s ease-in-out infinite; }
   min-height: 1em;
 }
 #now-title {
-  font-size: clamp(1.7rem, 4.5vw, 2.6rem);
+  font-size: clamp(1.4rem, 6vw, 2.6rem);
   font-weight: var(--title-w);
   text-transform: var(--title-tt);
   letter-spacing: -0.02em;
   line-height: 1.12;
-  margin: 0.25rem 0 0.3rem;
-}
-#now-prompt {
-  font-size: 0.85rem; font-weight: 500;
-  color: var(--ink-sub);
-  max-width: min(640px, 86vw);
-  margin: 0 auto;
+  margin: 0.25rem auto 0.3rem;
+  max-width: 100%;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+#now-title.long { font-size: clamp(1.15rem, 4.6vw, 2rem); }
+#now-title.xlong { font-size: clamp(1rem, 3.8vw, 1.6rem); }
 
 /* ---------- center stage: lyrics ---------- */
 #stage {
@@ -157,6 +148,9 @@ form.thinking input { animation: thinkpulse 1.2s ease-in-out infinite; }
   -webkit-mask-image: linear-gradient(180deg, transparent, black 18%, black 82%, transparent);
 }
 #lyrics {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  margin: 0 auto;
   width: min(760px, 92vw);
   text-align: center;
   will-change: transform;
@@ -164,7 +158,7 @@ form.thinking input { animation: thinkpulse 1.2s ease-in-out infinite; }
 #lyrics .line {
   font-family: var(--lyric-ff);
   font-weight: var(--lyric-w);
-  font-size: clamp(1.35rem, 3.6vw, 2.1rem);
+  font-size: clamp(1.15rem, 3.4vw, 2.1rem);
   line-height: 1.35;
   padding: 0.42em 0;
   color: rgba(255, 255, 255, 0.32);
@@ -296,10 +290,12 @@ form.thinking input { animation: thinkpulse 1.2s ease-in-out infinite; }
   gap: 0.7rem;
   padding: 0.5rem 0 0.2rem;
 }
-#suggestions { display: flex; gap: 0.6rem; flex-wrap: wrap; justify-content: center; min-height: 2.1rem; }
+#suggestions { display: flex; gap: 0.6rem; flex-wrap: wrap; justify-content: center; min-height: 2.1rem; max-width: 100%; }
 .chip {
   font-size: 0.8rem; font-weight: 600;
   color: var(--ink-sub);
+  max-width: 44vw;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   padding: 0.48rem 1.05rem;
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 500px;

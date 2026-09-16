@@ -20,9 +20,9 @@
   <!-- landing -->
   <main id="landing">
     <h1 class="wordmark">Sona</h1>
-    <p class="tagline">Dein unendlicher Stream. Ein Gedanke genügt.</p>
+    <p class="tagline">An infinite stream, tuned to a single thought.</p>
     <form id="seed-form" autocomplete="off">
-      <input id="seed-input" type="text" placeholder="Was willst du hören?" maxlength="300" />
+      <input id="seed-input" type="text" placeholder="What do you want to hear?" maxlength="300" />
     </form>
   </main>
 
@@ -30,13 +30,11 @@
   <main id="player" hidden>
     <header id="topbar">
       <span class="logo">Sona</span>
-      <span id="designer-credit" title="Design-Identität dieses Songs"></span>
     </header>
 
     <section id="now">
       <div id="now-state"></div>
       <h2 id="now-title"></h2>
-      <p id="now-prompt"></p>
     </section>
 
     <!-- center stage: lyrics -->
@@ -48,25 +46,25 @@
       <div id="progress"><div id="progress-fill"></div><div id="progress-knob"></div></div>
       <div id="times"><span id="t-cur">0:00</span><span id="t-dur">–:––</span></div>
       <div id="controls">
-        <button id="btn-play" aria-label="Abspielen">
+        <button id="btn-play" aria-label="Play">
           <svg viewBox="0 0 24 24"><path class="icon-play" d="M8 5.5v13l10.5-6.5z"/><g class="icon-pause" style="display:none"><rect x="7" y="5" width="3.4" height="14" rx="1"/><rect x="13.6" y="5" width="3.4" height="14" rx="1"/></g></svg>
         </button>
-        <button id="btn-next" aria-label="Nächster Track">
+        <button id="btn-next" aria-label="Next track">
           <svg viewBox="0 0 24 24"><path d="M6 5.5v13l9-6.5z"/><rect x="16.4" y="5.5" width="2.6" height="13" rx="1.2"/></svg>
         </button>
       </div>
     </section>
 
     <section id="queue-wrap">
-      <h3 id="queue-title">Als Nächstes</h3>
+      <h3 id="queue-title">Up Next</h3>
       <div id="queue"></div>
     </section>
 
     <footer id="composer">
       <div id="suggestions"></div>
       <form id="prompt-form" autocomplete="off">
-        <input id="prompt-input" type="text" placeholder="Beschreibe den nächsten Track …" maxlength="300" />
-        <button type="submit" id="prompt-send" aria-label="Senden">
+        <input id="prompt-input" type="text" placeholder="Describe the next track …" maxlength="300" />
+        <button type="submit" id="prompt-send" aria-label="Send">
           <svg viewBox="0 0 24 24"><path d="M4 12h14"/><path d="M13 6l6 6-6 6"/></svg>
         </button>
       </form>

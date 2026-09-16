@@ -35,7 +35,24 @@ const deck = () => decks[active];
 function mkDeck() {
   const el = new Audio();
   el.preload = 'auto';
-  return { el, gain: null };
+  return { el, gain: null, unlocked: false };
+}
+
+// iOS Safari only allows .play() on elements once unlocked by a user gesture —
+// prime BOTH decks on the first gesture so crossfades and auto-advance work.
+const SILENCE = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=';
+function unlockDecks() {
+  for (const d of decks) {
+    if (d.unlocked || d.el.src) continue;
+    d.el.src = SILENCE;
+    d.el.play().then(() => {
+      d.el.pause();
+      d.el.removeAttribute('src');
+      d.unlocked = true;
+    }).catch(() => {
+      d.el.removeAttribute('src');
+    });
+  }
 }
 
 function connectAnalyser() {
@@ -110,7 +127,6 @@ function applyDesign(design, palette) {
   root.setProperty('--lyric-w', design?.lyricWeight || '700');
   root.setProperty('--lyric-ff', LYRIC_FONTS[design?.lyricFont] || LYRIC_FONTS.sans);
   document.body.className = `mood-${design?.mood || 'clean'}`;
-  $('designer-credit').textContent = design?.designer ? `Design: ${design.designer}` : '';
 }
 
 /* ================= AI visual script ================= */
@@ -134,7 +150,8 @@ function buildLyrics(lines) {
     div.textContent = l.text;
     box.appendChild(div);
   }
-  gsap?.set(box, { y: 0 });
+  const lead = $('stage').clientHeight / 2 + 30;
+  gsap ? gsap.set(box, { y: lead }) : (box.style.transform = `translateY(${lead}px)`);
 }
 
 function syncTimeline() {
@@ -157,13 +174,15 @@ function syncTimeline() {
       els[i].className = 'line' + (i === idx ? ' active' : i < idx ? ' past' : '');
     }
     const stage = $('stage');
+    // #lyrics is pinned to the stage top, so line.offsetTop is stable — slide
+    // the whole list so the active line sits exactly in the stage center
+    let target;
     if (idx >= 0 && els[idx]) {
-      const target = stage.clientHeight / 2 - els[idx].offsetTop - els[idx].offsetHeight / 2;
-      gsap ? gsap.to(box, { y: target, duration: 0.7, ease: 'power3.out' }) : (box.style.transform = `translateY(${target}px)`);
-    } else if (els.length) {
-      const lead = stage.clientHeight / 2 + 40;
-      gsap ? gsap.to(box, { y: lead, duration: 0.7, ease: 'power3.out' }) : (box.style.transform = `translateY(${lead}px)`);
+      target = stage.clientHeight / 2 - els[idx].offsetTop - els[idx].offsetHeight / 2;
+    } else {
+      target = stage.clientHeight / 2 + 30; // lead-in: first line waits just below center
     }
+    gsap ? gsap.to(box, { y: target, duration: 0.7, ease: 'power3.out' }) : (box.style.transform = `translateY(${target}px)`);
   }
 
   // sections: intensity + scene evolution (weather, beat fx, warmth)
@@ -200,6 +219,7 @@ $('seed-form').addEventListener('submit', async (e) => {
   if (!prompt) return;
   $('seed-form').classList.add('thinking');
   connectAnalyser();
+  unlockDecks();
   audioCtx?.resume();
   try {
     const stream = await api('/api/streams', { method: 'POST', body: { prompt } });
@@ -208,7 +228,7 @@ $('seed-form').addEventListener('submit', async (e) => {
     startPolling(stream.id);
   } catch (err) {
     $('seed-form').classList.remove('thinking');
-    $('seed-input').placeholder = 'Etwas ging schief — versuch es nochmal';
+    $('seed-input').placeholder = 'Something went wrong — try again';
     $('seed-input').value = '';
     console.error(err);
   }
@@ -303,7 +323,7 @@ async function playTrack(track, fadeSec = 0) {
     navigator.mediaSession.metadata = new MediaMetadata({
       title: track.title || track.prompt,
       artist: 'Sona',
-      album: state.stream?.title || 'Unendlicher Stream',
+      album: state.stream?.title || 'Infinite stream',
     });
   }
   render();
@@ -370,6 +390,7 @@ function updatePlayIcon(playing) {
 
 $('btn-play').addEventListener('click', () => {
   connectAnalyser();
+  unlockDecks();
   audioCtx?.resume();
   const el = deck().el;
   if (el.paused) {
@@ -408,16 +429,22 @@ function render() {
   const cur = currentTrack();
   if (cur) applyVisual(cur); // visual script may arrive after playback started
   if (cur) {
-    $('now-state').textContent = state.mixing ? 'Mix läuft' : 'Läuft gerade';
-    $('now-title').textContent = cur.title || cur.prompt;
-    $('now-prompt').textContent = cur.prompt;
+    $('now-state').textContent = 'Now playing';
+    setTitle(cur.title || cur.prompt);
   } else if (state.waiting || !s.tracks.some((t) => t.status === 'ready')) {
-    $('now-state').textContent = 'Wird generiert …';
-    $('now-title').textContent = upcoming()[0]?.title || upcoming()[0]?.prompt || s.seed_prompt;
-    $('now-prompt').textContent = 'Der nächste Track entsteht gerade';
+    $('now-state').textContent = 'Generating …';
+    setTitle(upcoming()[0]?.title || upcoming()[0]?.prompt || s.seed_prompt);
   }
 
   renderQueue();
+}
+
+// long titles scale down and truncate instead of breaking the layout
+function setTitle(text) {
+  const el = $('now-title');
+  el.textContent = text || '';
+  el.classList.toggle('long', text?.length > 24 && text.length <= 40);
+  el.classList.toggle('xlong', text?.length > 40);
 }
 
 function thumbStyle(track) {
@@ -429,10 +456,10 @@ function thumbStyle(track) {
 }
 
 const STATUS_LABEL = {
-  ready: 'bereit',
-  generating: 'entsteht …',
-  queued: 'wartet',
-  failed: 'fehlgeschlagen',
+  ready: 'ready',
+  generating: 'forming …',
+  queued: 'queued',
+  failed: 'failed',
 };
 
 function renderQueue() {
@@ -453,13 +480,14 @@ function renderQueue() {
       if (t.optimistic) gsap?.from(el, { opacity: 0, y: -8, duration: 0.4, ease: 'power2.out' });
     }
     el.querySelector('.qtitle').textContent = t.title || t.prompt;
-    el.querySelector('.qsub').textContent = t.title ? t.prompt : (t.source === 'auto' ? 'Auto-Fortsetzung' : 'Dein Prompt');
+    el.querySelector('.qsub').textContent =
+      t.source === 'auto' ? 'Sona · auto mix' : t.source === 'suggestion' ? 'Sona · from a suggestion' : 'Sona · your prompt';
     const bg = thumbStyle(t);
     if (bg) el.querySelector('.qthumb').style.background = bg;
     const meta = t.id === state.currentTrackId
-      ? 'läuft'
+      ? 'playing'
       : state.playedIds.has(t.id)
-        ? 'gespielt'
+        ? 'played'
         : STATUS_LABEL[t.status] || t.status;
     el.querySelector('.qmeta').textContent = meta;
 
@@ -544,6 +572,7 @@ async function enqueuePrompt(prompt, source = 'user') {
 
 $('prompt-form').addEventListener('submit', (e) => {
   e.preventDefault();
+  unlockDecks();
   const input = $('prompt-input');
   const prompt = input.value.trim();
   if (!prompt) return;
@@ -559,7 +588,7 @@ async function refreshSuggestions() {
     const { suggestions } = await api(`/api/streams/${state.stream.id}/suggestions`);
     const box = $('suggestions');
     box.innerHTML = '';
-    suggestions.forEach((sug, i) => {
+    suggestions.slice(0, 2).forEach((sug, i) => {
       const chip = document.createElement('button');
       chip.className = 'chip';
       chip.textContent = sug.label;

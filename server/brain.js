@@ -107,7 +107,7 @@ export async function nextPrompt(seedPrompt, history) {
 export async function suggestions(seedPrompt, history) {
   try {
     const out = await ask(
-      'You suggest directions an infinite AI music stream could take next. Given the current vibe, produce 3 short, distinct, tempting directions. Each has a 2-3 word label (like a mood chip) and a one-sentence music prompt. Make them diverge: one stays close, one shifts mood, one is a bold turn.',
+      'You suggest directions an infinite AI music stream could take next. Given the current vibe, produce 2 short, distinct, tempting directions. Each has a 2-3 word label (like a mood chip) and a one-sentence music prompt. Make them diverge: one stays close, one is a bold turn.',
       `Seed vibe: "${seedPrompt}"\nRecent tracks: ${history.map((t) => t.title || t.prompt).join(', ') || '(none)'}`,
       {
         type: 'object',
@@ -127,7 +127,7 @@ export async function suggestions(seedPrompt, history) {
         required: ['suggestions'],
       }
     );
-    return (out.suggestions || []).slice(0, 3);
+    return (out.suggestions || []).slice(0, 2);
   } catch (err) {
     console.error('brain.suggestions fallback:', err.message);
     return [];
