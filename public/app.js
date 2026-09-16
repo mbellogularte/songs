@@ -1,92 +1,72 @@
-/* Sona player — the world walks and breathes with the music. */
+/* Sona player — Spotify-grade UI over an AI-scripted living world.
+   Two audio decks crossfade between tracks like a DJ mix; every song brings
+   its own AI-generated design identity (accent, typography, mood) and a timed
+   visual script (scene, sections, lyrics). */
 
-import { initVisualizer, setScene, setPlaying, setVisual, setIntensity } from '/visualizer.js';
+import { initVisualizer, setScene, setPlaying, setVisual, setIntensity, setSectionFx } from '/visualizer.js';
 
 const $ = (id) => document.getElementById(id);
-const audio = $('audio');
+const gsap = window.gsap;
 
 const state = {
-  stream: null,          // latest stream payload from the server
-  currentTrackId: null,  // track loaded in the <audio> element
+  stream: null,
+  currentTrackId: null,
   playedIds: new Set(),
-  waiting: false,        // stream ran ahead of generation
-  suggestionsFor: null,  // track id the current suggestions belong to
-  visual: null,          // AI visual script of the current track
+  pending: [],           // optimistic queue entries awaiting the server
+  waiting: false,
+  suggestionsFor: null,
+  visual: null,
   visualFor: null,
-  lyricIdx: -1,
+  lyricIdx: -2,
   sectionT: undefined,
+  mixing: false,         // a crossfade into the next track is underway
 };
 
-/* AI visual script: scene spec + timed lyrics + section timeline */
-function applyVisual(track) {
-  if (!track?.visual || state.visualFor === track.id) return;
-  state.visualFor = track.id;
-  state.visual = track.visual;
-  state.lyricIdx = -1;
-  state.sectionT = undefined;
-  setVisual(track.visual.scene);
-}
-
-function syncTimeline() {
-  const v = state.visual;
-  if (!v) return;
-  const t = audio.currentTime;
-
-  const lines = v.lyrics || [];
-  let idx = -1;
-  for (let i = 0; i < lines.length; i++) {
-    if (lines[i].t <= t) idx = i;
-    else break;
-  }
-  if (idx !== state.lyricIdx) {
-    state.lyricIdx = idx;
-    const text = idx >= 0 ? lines[idx].text : '';
-    const el = $('lyric');
-    if (window.gsap) {
-      window.gsap.to(el, {
-        opacity: 0, filter: 'blur(6px)', duration: 0.35, overwrite: 'auto',
-        onComplete: () => {
-          el.textContent = text;
-          window.gsap.to(el, { opacity: 1, filter: 'blur(0px)', duration: 0.9 });
-        },
-      });
-    } else {
-      el.textContent = text;
-    }
-  }
-
-  const secs = v.sections || [];
-  let cur = null;
-  for (const s of secs) {
-    if (s.t <= t) cur = s;
-    else break;
-  }
-  if (cur?.t !== state.sectionT) {
-    state.sectionT = cur?.t;
-    setIntensity(cur ? cur.intensity : null);
-  }
-}
-
-/* ---------------- audio analysis ---------------- */
+/* ================= audio: two decks + crossfade ================= */
 let audioCtx = null;
 let analyser = null;
 let freq = null;
+let master = null;
+
+const decks = [mkDeck(), mkDeck()];
+let active = 0;
+const deck = () => decks[active];
+
+function mkDeck() {
+  const el = new Audio();
+  el.preload = 'auto';
+  return { el, gain: null };
+}
 
 function connectAnalyser() {
   if (audioCtx) return;
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  const src = audioCtx.createMediaElementSource(audio);
+  master = audioCtx.createGain();
   analyser = audioCtx.createAnalyser();
   analyser.fftSize = 512;
   analyser.smoothingTimeConstant = 0.8;
-  src.connect(analyser);
+  master.connect(analyser);
   analyser.connect(audioCtx.destination);
   freq = new Uint8Array(analyser.frequencyBinCount);
+  for (const d of decks) {
+    const src = audioCtx.createMediaElementSource(d.el);
+    d.gain = audioCtx.createGain();
+    src.connect(d.gain);
+    d.gain.connect(master);
+  }
+}
+
+function ramp(gainNode, to, sec) {
+  if (!gainNode || !audioCtx) return;
+  const g = gainNode.gain;
+  g.cancelScheduledValues(audioCtx.currentTime);
+  g.setValueAtTime(g.value, audioCtx.currentTime);
+  g.linearRampToValueAtTime(to, audioCtx.currentTime + Math.max(0.05, sec));
 }
 
 // live bands feeding the visualizer: bass / mid / high / overall energy, 0..1
 function getBands() {
-  if (!analyser || audio.paused) return { bass: 0, mid: 0, high: 0, energy: 0 };
+  if (!analyser || deck().el.paused) return { bass: 0, mid: 0, high: 0, energy: 0 };
   analyser.getByteFrequencyData(freq);
   const n = freq.length;
   const avg = (a, b) => {
@@ -104,17 +84,105 @@ function getBands() {
 
 initVisualizer($('scene'), getBands).catch((err) => console.error('visualizer failed', err));
 
+/* ================= design tokens (per-song AI identity) ================= */
+const LYRIC_FONTS = {
+  sans: "'Figtree', 'Helvetica Neue', sans-serif",
+  serif: "Georgia, 'Iowan Old Style', 'Times New Roman', serif",
+  mono: "ui-monospace, 'SF Mono', Menlo, Consolas, monospace",
+};
+
 function applyPalette(palette, energy) {
-  const p = Array.isArray(palette) && palette.length ? palette : ['#3a4150', '#262b36', '#1a1e27'];
+  const p = Array.isArray(palette) && palette.length ? palette : ['#5a6478', '#333b4c', '#232936'];
   const root = document.documentElement.style;
   root.setProperty('--c0', p[0]);
   root.setProperty('--c1', p[1] || p[0]);
   root.setProperty('--c2', p[2] || p[1] || p[0]);
-  root.setProperty('--glow', p[0] + '66');
+  root.setProperty('--glow', p[0] + '55');
   setScene(p, energy ?? 0.5);
 }
 
-/* ---------------- api ---------------- */
+function applyDesign(design, palette) {
+  const root = document.documentElement.style;
+  const accent = design?.accent || palette?.[0] || '#8090a8';
+  root.setProperty('--accent', accent);
+  root.setProperty('--title-w', design?.titleWeight || '800');
+  root.setProperty('--title-tt', design?.titleCase === 'uppercase' ? 'uppercase' : 'none');
+  root.setProperty('--lyric-w', design?.lyricWeight || '700');
+  root.setProperty('--lyric-ff', LYRIC_FONTS[design?.lyricFont] || LYRIC_FONTS.sans);
+  document.body.className = `mood-${design?.mood || 'clean'}`;
+  $('designer-credit').textContent = design?.designer ? `Design: ${design.designer}` : '';
+}
+
+/* ================= AI visual script ================= */
+function applyVisual(track) {
+  if (!track?.visual || state.visualFor === track.id) return;
+  state.visualFor = track.id;
+  state.visual = track.visual;
+  state.lyricIdx = -2;
+  state.sectionT = undefined;
+  setVisual(track.visual.scene);
+  applyDesign(track.visual.design, track.palette);
+  buildLyrics(track.visual.lyrics || []);
+}
+
+function buildLyrics(lines) {
+  const box = $('lyrics');
+  box.innerHTML = '';
+  for (const l of lines) {
+    const div = document.createElement('div');
+    div.className = 'line';
+    div.textContent = l.text;
+    box.appendChild(div);
+  }
+  gsap?.set(box, { y: 0 });
+}
+
+function syncTimeline() {
+  const v = state.visual;
+  if (!v) return;
+  const t = deck().el.currentTime;
+
+  // lyrics: slide the active line into the center of the stage
+  const lines = v.lyrics || [];
+  let idx = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].t <= t + 0.25) idx = i;
+    else break;
+  }
+  if (idx !== state.lyricIdx) {
+    state.lyricIdx = idx;
+    const box = $('lyrics');
+    const els = box.children;
+    for (let i = 0; i < els.length; i++) {
+      els[i].className = 'line' + (i === idx ? ' active' : i < idx ? ' past' : '');
+    }
+    const stage = $('stage');
+    if (idx >= 0 && els[idx]) {
+      const target = stage.clientHeight / 2 - els[idx].offsetTop - els[idx].offsetHeight / 2;
+      gsap ? gsap.to(box, { y: target, duration: 0.7, ease: 'power3.out' }) : (box.style.transform = `translateY(${target}px)`);
+    } else if (els.length) {
+      const lead = stage.clientHeight / 2 + 40;
+      gsap ? gsap.to(box, { y: lead, duration: 0.7, ease: 'power3.out' }) : (box.style.transform = `translateY(${lead}px)`);
+    }
+  }
+
+  // sections: intensity + scene evolution (weather, beat fx, warmth)
+  const secs = v.sections || [];
+  let cur = null;
+  for (const s of secs) {
+    if (s.t <= t) cur = s;
+    else break;
+  }
+  if (cur?.t !== state.sectionT) {
+    state.sectionT = cur?.t;
+    setIntensity(cur ? cur.intensity : null);
+    setSectionFx(cur && (cur.weather || cur.beatEffect || cur.warmth != null)
+      ? { weather: cur.weather, weatherIntensity: cur.weatherIntensity, beatEffect: cur.beatEffect, warmth: cur.warmth }
+      : null);
+  }
+}
+
+/* ================= api ================= */
 async function api(path, opts = {}) {
   const res = await fetch(path, {
     headers: { 'Content-Type': 'application/json' },
@@ -125,13 +193,13 @@ async function api(path, opts = {}) {
   return res.json();
 }
 
-/* ---------------- stream lifecycle ---------------- */
+/* ================= stream lifecycle ================= */
 $('seed-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const prompt = $('seed-input').value.trim();
   if (!prompt) return;
   $('seed-form').classList.add('thinking');
-  connectAnalyser(); // user gesture: unlock audio
+  connectAnalyser();
   audioCtx?.resume();
   try {
     const stream = await api('/api/streams', { method: 'POST', body: { prompt } });
@@ -140,7 +208,7 @@ $('seed-form').addEventListener('submit', async (e) => {
     startPolling(stream.id);
   } catch (err) {
     $('seed-form').classList.remove('thinking');
-    $('seed-input').placeholder = 'something went wrong — try again';
+    $('seed-input').placeholder = 'Etwas ging schief — versuch es nochmal';
     $('seed-input').value = '';
     console.error(err);
   }
@@ -157,6 +225,9 @@ function startPolling(streamId) {
     try {
       const stream = await api(`/api/streams/${streamId}`);
       state.stream = stream;
+      state.pending = state.pending.filter(
+        (p) => !stream.tracks.some((t) => t.prompt === p.prompt && t.status !== undefined && Math.abs(new Date(t.created_at) - p.at) < 60_000)
+      );
       render();
       maybeAutoplay();
     } catch (err) {
@@ -167,10 +238,13 @@ function startPolling(streamId) {
   pollTimer = setInterval(poll, 2500);
 }
 
-/* ---------------- playback ---------------- */
+/* ================= playback ================= */
+function allTracks() {
+  return state.stream ? state.stream.tracks : [];
+}
+
 function upcoming() {
-  if (!state.stream) return [];
-  return state.stream.tracks.filter(
+  return allTracks().filter(
     (t) => !state.playedIds.has(t.id) && t.id !== state.currentTrackId && t.status !== 'failed'
   );
 }
@@ -178,40 +252,58 @@ function upcoming() {
 function nextReady() {
   const up = upcoming();
   if (!up.length) return null;
-  // respect queue order, but don't stall the stream if a later track is ready
   return up[0].status === 'ready' ? up[0] : up.find((t) => t.status === 'ready') || null;
 }
 
-async function playTrack(track) {
+function currentTrack() {
+  return allTracks().find((t) => t.id === state.currentTrackId) || null;
+}
+
+async function playTrack(track, fadeSec = 0) {
   state.waiting = false;
+  state.mixing = false;
+  const prevIdx = active;
+  const prev = decks[prevIdx];
+  const nextIdx = audioCtx ? 1 - active : active;
+  const next = decks[nextIdx];
+
   state.currentTrackId = track.id;
-  audio.src = `/api/tracks/${track.id}/audio`;
+  next.el.src = `/api/tracks/${track.id}/audio`;
   connectAnalyser();
   audioCtx?.resume();
+  if (next.gain) next.gain.gain.value = fadeSec > 0 ? 0 : 1;
   try {
-    await audio.play();
+    await next.el.play();
   } catch (err) {
     console.error('play blocked', err);
   }
+  active = nextIdx;
+  if (audioCtx && prevIdx !== nextIdx) {
+    ramp(next.gain, 1, fadeSec || 0.05);
+    ramp(prev.gain, 0, fadeSec || 0.05);
+    setTimeout(() => {
+      prev.el.pause();
+      prev.el.removeAttribute('src');
+    }, (fadeSec || 0.05) * 1000 + 150);
+  }
+
   applyPalette(track.palette, track.energy);
   state.visual = null;
-  state.lyricIdx = -1;
-  $('lyric').textContent = '';
+  state.visualFor = null;
+  state.lyricIdx = -2;
+  buildLyrics([]);
   setIntensity(null);
+  setSectionFx(null);
   applyVisual(track);
-  if (window.gsap) {
-    window.gsap.fromTo(
-      '#now-title',
-      { opacity: 0, filter: 'blur(10px)', y: 8 },
-      { opacity: 1, filter: 'blur(0px)', y: 0, duration: 2.2, ease: 'power2.out' }
-    );
-  }
+  if (!track.visual) applyDesign(null, track.palette);
+  gsap?.fromTo('#now-title', { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.9, ease: 'power3.out' });
+
   api(`/api/streams/${state.stream.id}/advance`, { method: 'POST', body: { trackId: track.id } }).catch(() => {});
   if ('mediaSession' in navigator) {
     navigator.mediaSession.metadata = new MediaMetadata({
       title: track.title || track.prompt,
       artist: 'Sona',
-      album: state.stream?.title || 'infinite stream',
+      album: state.stream?.title || 'Unendlicher Stream',
     });
   }
   render();
@@ -219,19 +311,17 @@ async function playTrack(track) {
 }
 
 function maybeAutoplay() {
-  // Autostart the very first ready track, or continue after a generation gap.
-  // A user-initiated pause (currentTrackId set, not waiting) is respected.
   const fresh = !state.currentTrackId && !state.playedIds.size && !state.waiting;
   if (!fresh && !state.waiting) return;
   const next = nextReady();
-  if (next) playTrack(next);
+  if (next) playTrack(next, 0);
 }
 
-function advance() {
+function advance(fadeSec = 1.2) {
   if (state.currentTrackId) state.playedIds.add(state.currentTrackId);
   const next = nextReady();
   if (next) {
-    playTrack(next);
+    playTrack(next, fadeSec);
   } else {
     state.waiting = true;
     state.currentTrackId = null;
@@ -239,78 +329,115 @@ function advance() {
   }
 }
 
-audio.addEventListener('ended', advance);
-audio.addEventListener('timeupdate', () => {
-  if (audio.duration) {
-    $('progress-fill').style.width = `${(audio.currentTime / audio.duration) * 100}%`;
-  }
-  syncTimeline();
-});
-audio.addEventListener('play', () => {
-  document.querySelector('.icon-play').style.display = 'none';
-  document.querySelector('.icon-pause').style.display = '';
-  setPlaying(true);
-});
-audio.addEventListener('pause', () => {
-  document.querySelector('.icon-play').style.display = '';
-  document.querySelector('.icon-pause').style.display = 'none';
-  setPlaying(false);
-});
+for (const d of decks) {
+  d.el.addEventListener('ended', () => {
+    if (d !== deck() || state.mixing) return;
+    advance(0.2);
+  });
+  d.el.addEventListener('timeupdate', () => {
+    if (d !== deck()) return;
+    const el = d.el;
+    if (el.duration) {
+      const pct = (el.currentTime / el.duration) * 100;
+      $('progress-fill').style.width = `${pct}%`;
+      $('progress-knob').style.left = `${pct}%`;
+      $('t-cur').textContent = fmtTime(el.currentTime);
+      $('t-dur').textContent = fmtTime(el.duration);
+      // DJ mix: start crossfading into the next track before this one ends
+      if (!state.mixing && el.duration - el.currentTime < 5 && nextReady()) {
+        state.mixing = true;
+        if (state.currentTrackId) state.playedIds.add(state.currentTrackId);
+        playTrack(nextReady(), 4);
+      }
+    }
+    syncTimeline();
+  });
+  d.el.addEventListener('play', () => { if (d === deck()) updatePlayIcon(true); });
+  d.el.addEventListener('pause', () => { if (d === deck()) updatePlayIcon(false); });
+}
+
+function fmtTime(s) {
+  if (!isFinite(s)) return '–:––';
+  const m = Math.floor(s / 60);
+  return `${m}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+}
+
+function updatePlayIcon(playing) {
+  document.querySelector('.icon-play').style.display = playing ? 'none' : '';
+  document.querySelector('.icon-pause').style.display = playing ? '' : 'none';
+  setPlaying(playing);
+}
 
 $('btn-play').addEventListener('click', () => {
   connectAnalyser();
   audioCtx?.resume();
-  if (audio.paused) {
+  const el = deck().el;
+  if (el.paused) {
     if (!state.currentTrackId) {
       const next = nextReady();
-      if (next) return playTrack(next);
+      if (next) return playTrack(next, 0);
       state.waiting = true;
       render();
       return;
     }
-    audio.play();
+    el.play();
   } else {
-    audio.pause();
+    el.pause();
   }
 });
-$('btn-next').addEventListener('click', advance);
+$('btn-next').addEventListener('click', () => advance(1.2));
+
+$('progress').addEventListener('click', (e) => {
+  const el = deck().el;
+  if (!el.duration) return;
+  const r = $('progress').getBoundingClientRect();
+  el.currentTime = ((e.clientX - r.left) / r.width) * el.duration;
+});
 
 if ('mediaSession' in navigator) {
-  navigator.mediaSession.setActionHandler('play', () => audio.play());
-  navigator.mediaSession.setActionHandler('pause', () => audio.pause());
-  navigator.mediaSession.setActionHandler('nexttrack', advance);
+  navigator.mediaSession.setActionHandler('play', () => deck().el.play());
+  navigator.mediaSession.setActionHandler('pause', () => deck().el.pause());
+  navigator.mediaSession.setActionHandler('nexttrack', () => advance(1.2));
 }
 
-/* ---------------- rendering ---------------- */
-function currentTrack() {
-  return state.stream?.tracks.find((t) => t.id === state.currentTrackId) || null;
-}
-
+/* ================= rendering ================= */
 function render() {
   const s = state.stream;
   if (!s) return;
-  $('stream-title').textContent = s.title || s.seed_prompt;
 
   const cur = currentTrack();
   if (cur) applyVisual(cur); // visual script may arrive after playback started
   if (cur) {
-    $('now-state').textContent = 'now playing';
+    $('now-state').textContent = state.mixing ? 'Mix läuft' : 'Läuft gerade';
     $('now-title').textContent = cur.title || cur.prompt;
-    $('now-title').classList.remove('foggy');
     $('now-prompt').textContent = cur.prompt;
   } else if (state.waiting || !s.tracks.some((t) => t.status === 'ready')) {
-    $('now-state').textContent = 'emerging from the fog';
+    $('now-state').textContent = 'Wird generiert …';
     $('now-title').textContent = upcoming()[0]?.title || upcoming()[0]?.prompt || s.seed_prompt;
-    $('now-title').classList.add('foggy');
-    $('now-prompt').textContent = 'the next track is being generated…';
+    $('now-prompt').textContent = 'Der nächste Track entsteht gerade';
   }
 
   renderQueue();
 }
 
+function thumbStyle(track) {
+  const p = track.palette;
+  if (Array.isArray(p) && p.length >= 2) {
+    return `linear-gradient(135deg, ${p[0]}, ${p[1]}${p[2] ? ', ' + p[2] : ''})`;
+  }
+  return '';
+}
+
+const STATUS_LABEL = {
+  ready: 'bereit',
+  generating: 'entsteht …',
+  queued: 'wartet',
+  failed: 'fehlgeschlagen',
+};
+
 function renderQueue() {
   const container = $('queue');
-  const tracks = state.stream.tracks;
+  const tracks = [...allTracks(), ...state.pending];
   const seen = new Set();
 
   tracks.forEach((t) => {
@@ -320,43 +447,38 @@ function renderQueue() {
       el = document.createElement('div');
       el.className = 'qtrack';
       el.dataset.id = t.id;
-      el.innerHTML = `<span class="qtitle"></span><span class="qmeta"></span>`;
+      el.innerHTML = `<div class="qthumb"></div><div class="qmain"><span class="qtitle"></span><span class="qsub"></span></div><span class="qmeta"></span>`;
       container.appendChild(el);
       makeDraggable(el);
+      if (t.optimistic) gsap?.from(el, { opacity: 0, y: -8, duration: 0.4, ease: 'power2.out' });
     }
     el.querySelector('.qtitle').textContent = t.title || t.prompt;
-    const meta =
-      t.id === state.currentTrackId
-        ? 'playing'
-        : state.playedIds.has(t.id)
-          ? 'played'
-          : t.status === 'ready'
-            ? 'ready'
-            : t.status === 'failed'
-              ? 'failed'
-              : t.status === 'generating'
-                ? 'forming'
-                : 'in the fog';
+    el.querySelector('.qsub').textContent = t.title ? t.prompt : (t.source === 'auto' ? 'Auto-Fortsetzung' : 'Dein Prompt');
+    const bg = thumbStyle(t);
+    if (bg) el.querySelector('.qthumb').style.background = bg;
+    const meta = t.id === state.currentTrackId
+      ? 'läuft'
+      : state.playedIds.has(t.id)
+        ? 'gespielt'
+        : STATUS_LABEL[t.status] || t.status;
     el.querySelector('.qmeta').textContent = meta;
 
     el.className = 'qtrack';
     if (t.id === state.currentTrackId) el.classList.add('playing');
     else if (state.playedIds.has(t.id)) el.classList.add('played');
     else el.classList.add(t.status);
-    const reorderable = !state.playedIds.has(t.id) && t.id !== state.currentTrackId;
+    const reorderable = !t.optimistic && !state.playedIds.has(t.id) && t.id !== state.currentTrackId;
     if (reorderable) el.classList.add('draggable');
 
-    // keep DOM order in sync with position order
-    container.appendChild(el);
+    container.appendChild(el); // keep DOM order in sync with position order
   });
 
-  // drop removed tracks
   [...container.children].forEach((el) => {
     if (!seen.has(el.dataset.id)) el.remove();
   });
 }
 
-/* ---------------- drag to reorder ---------------- */
+/* ================= drag to reorder ================= */
 let drag = null;
 function makeDraggable(el) {
   el.addEventListener('pointerdown', (e) => {
@@ -390,21 +512,43 @@ function makeDraggable(el) {
   });
 }
 
-/* ---------------- composer: prompts + suggestions ---------------- */
-$('prompt-form').addEventListener('submit', async (e) => {
+/* ================= composer: instant prompts + bubbles ================= */
+async function enqueuePrompt(prompt, source = 'user') {
+  if (!prompt || !state.stream) return;
+  // optimistic: the track appears in the queue the moment you send it
+  const temp = {
+    id: `tmp-${Date.now()}`,
+    prompt,
+    title: null,
+    status: 'queued',
+    source,
+    optimistic: true,
+    at: Date.now(),
+  };
+  state.pending.push(temp);
+  renderQueue();
+  try {
+    const real = await api(`/api/streams/${state.stream.id}/tracks`, {
+      method: 'POST',
+      body: { prompt, source },
+    });
+    state.pending = state.pending.filter((p) => p.id !== temp.id);
+    if (!state.stream.tracks.some((t) => t.id === real.id)) state.stream.tracks.push(real);
+    renderQueue();
+  } catch (err) {
+    state.pending = state.pending.filter((p) => p.id !== temp.id);
+    renderQueue();
+    console.error(err);
+  }
+}
+
+$('prompt-form').addEventListener('submit', (e) => {
   e.preventDefault();
   const input = $('prompt-input');
   const prompt = input.value.trim();
-  if (!prompt || !state.stream) return;
+  if (!prompt) return;
   input.value = '';
-  $('prompt-form').classList.add('thinking');
-  try {
-    await api(`/api/streams/${state.stream.id}/tracks`, { method: 'POST', body: { prompt } });
-  } catch (err) {
-    console.error(err);
-  } finally {
-    setTimeout(() => $('prompt-form').classList.remove('thinking'), 1200);
-  }
+  enqueuePrompt(prompt, 'user');
 });
 
 async function refreshSuggestions() {
@@ -418,24 +562,31 @@ async function refreshSuggestions() {
     suggestions.forEach((sug, i) => {
       const chip = document.createElement('button');
       chip.className = 'chip';
-      chip.style.animationDelay = `${i * 0.35}s`;
       chip.textContent = sug.label;
       chip.title = sug.prompt;
-      chip.addEventListener('click', async () => {
-        chip.remove();
-        await api(`/api/streams/${state.stream.id}/tracks`, {
-          method: 'POST',
-          body: { prompt: sug.prompt, source: 'suggestion' },
-        }).catch(console.error);
+      chip.addEventListener('click', () => {
+        gsap?.to(chip, { scale: 0.6, opacity: 0, duration: 0.3, ease: 'power2.in', onComplete: () => chip.remove() });
+        if (!gsap) chip.remove();
+        enqueuePrompt(sug.prompt, 'suggestion');
       });
       box.appendChild(chip);
+      // bubbles surface from the fog and gently bob
+      if (gsap) {
+        gsap.fromTo(chip,
+          { opacity: 0, y: 16, filter: 'blur(5px)' },
+          { opacity: 1, y: 0, filter: 'blur(0px)', duration: 1.1, delay: i * 0.28, ease: 'power2.out' }
+        );
+        gsap.to(chip, { y: '-=4', duration: 1.8 + i * 0.3, delay: 1.2 + i * 0.28, yoyo: true, repeat: -1, ease: 'sine.inOut' });
+      } else {
+        chip.style.opacity = 1;
+      }
     });
   } catch (err) {
     console.error('suggestions failed', err);
   }
 }
 
-/* ---------------- settings: provider switch ---------------- */
+/* ================= settings: provider switch ================= */
 $('btn-settings').addEventListener('click', async () => {
   const panel = $('settings-panel');
   panel.hidden = !panel.hidden;
@@ -455,7 +606,7 @@ document.querySelectorAll('#settings-panel [data-provider]').forEach((btn) => {
   });
 });
 
-/* ---------------- boot: resume a stream from /s/:id ---------------- */
+/* ================= boot: resume a stream from /s/:id ================= */
 const match = location.pathname.match(/^\/s\/([0-9a-f-]{36})/);
 if (match) {
   enterPlayer();

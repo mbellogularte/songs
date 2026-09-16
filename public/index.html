@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="en">
+<html lang="de">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Sona</title>
-  <meta name="description" content="Sona — a promptable infinite music stream" />
+  <meta name="description" content="Sona — dein promptbarer, unendlicher Music-Stream" />
   <meta name="theme-color" content="#101216" />
   <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
@@ -19,54 +19,68 @@
 
   <!-- landing -->
   <main id="landing">
-    <h1 class="wordmark">S O N A</h1>
-    <p class="tagline">an infinite stream, tuned to a single thought</p>
+    <h1 class="wordmark">Sona</h1>
+    <p class="tagline">Dein unendlicher Stream. Ein Gedanke genügt.</p>
     <form id="seed-form" autocomplete="off">
-      <input id="seed-input" type="text" placeholder="what do you want to hear?" maxlength="300" />
-      <div class="inputline"></div>
+      <input id="seed-input" type="text" placeholder="Was willst du hören?" maxlength="300" />
     </form>
   </main>
 
   <!-- player -->
   <main id="player" hidden>
-    <header id="stream-title"></header>
+    <header id="topbar">
+      <span class="logo">Sona</span>
+      <span id="designer-credit" title="Design-Identität dieses Songs"></span>
+    </header>
 
     <section id="now">
       <div id="now-state"></div>
       <h2 id="now-title"></h2>
       <p id="now-prompt"></p>
-      <div id="progress"><div id="progress-fill"></div></div>
-      <p id="lyric"></p>
+    </section>
+
+    <!-- center stage: lyrics -->
+    <section id="stage">
+      <div id="lyrics"></div>
+    </section>
+
+    <section id="transport">
+      <div id="progress"><div id="progress-fill"></div><div id="progress-knob"></div></div>
+      <div id="times"><span id="t-cur">0:00</span><span id="t-dur">–:––</span></div>
       <div id="controls">
-        <button id="btn-play" aria-label="play">
-          <svg viewBox="0 0 24 24"><path class="icon-play" d="M8 5v14l11-7z"/><g class="icon-pause" style="display:none"><path d="M7 5v14"/><path d="M17 5v14"/></g></svg>
+        <button id="btn-play" aria-label="Abspielen">
+          <svg viewBox="0 0 24 24"><path class="icon-play" d="M8 5.5v13l10.5-6.5z"/><g class="icon-pause" style="display:none"><rect x="7" y="5" width="3.4" height="14" rx="1"/><rect x="13.6" y="5" width="3.4" height="14" rx="1"/></g></svg>
         </button>
-        <button id="btn-next" aria-label="next">
-          <svg viewBox="0 0 24 24"><path d="M6 5v14l8.5-7z"/><path d="M18 5v14"/></svg>
+        <button id="btn-next" aria-label="Nächster Track">
+          <svg viewBox="0 0 24 24"><path d="M6 5.5v13l9-6.5z"/><rect x="16.4" y="5.5" width="2.6" height="13" rx="1.2"/></svg>
         </button>
       </div>
     </section>
 
-    <section id="queue"></section>
+    <section id="queue-wrap">
+      <h3 id="queue-title">Als Nächstes</h3>
+      <div id="queue"></div>
+    </section>
 
     <footer id="composer">
       <div id="suggestions"></div>
       <form id="prompt-form" autocomplete="off">
-        <input id="prompt-input" type="text" placeholder="where should it go next…" maxlength="300" />
-        <div class="inputline"></div>
+        <input id="prompt-input" type="text" placeholder="Beschreibe den nächsten Track …" maxlength="300" />
+        <button type="submit" id="prompt-send" aria-label="Senden">
+          <svg viewBox="0 0 24 24"><path d="M4 12h14"/><path d="M13 6l6 6-6 6"/></svg>
+        </button>
       </form>
     </footer>
   </main>
 
   <!-- provider switch, deliberately quiet -->
-  <button id="btn-settings" aria-label="settings">·</button>
+  <button id="btn-settings" aria-label="Engine">·</button>
   <div id="settings-panel" hidden>
-    <span>engine</span>
-    <button data-provider="lyria">lyria</button>
-    <button data-provider="elevenlabs">elevenlabs</button>
+    <span>Engine</span>
+    <button data-provider="lyria">Lyria</button>
+    <button data-provider="elevenlabs">ElevenLabs</button>
   </div>
 
-  <audio id="audio" preload="auto"></audio>
   <script src="/vendor/gsap.min.js"></script>
   <script type="module" src="/app.js"></script>
 </body>

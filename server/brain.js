@@ -152,16 +152,41 @@ const VISUAL_SCHEMA = {
     },
     sections: {
       type: 'array',
-      description: 'Musical timeline: intro, build, drop, verse, chorus, breakdown, outro… with start time and intensity',
+      description: 'Musical timeline: intro, build, drop, verse, chorus, breakdown, outro… with start time and intensity. Use the optional fields to EVOLVE the scene through the song — weather shifts, beat effects change, light warms or cools. The visuals should keep changing with the music, not just once at the start.',
       items: {
         type: 'object',
         properties: {
           t: { type: 'number', description: 'start time in seconds' },
           label: { type: 'string' },
           intensity: { type: 'number', description: '0.0 calm to 1.0 peak' },
+          weather: {
+            type: 'string',
+            enum: ['none', 'dust', 'rain', 'snow', 'embers', 'fireflies'],
+            description: 'optional weather change for this section',
+          },
+          weatherIntensity: { type: 'number' },
+          beatEffect: { type: 'string', enum: ['flare', 'lightning', 'burst'] },
+          warmth: { type: 'number', description: 'optional light temperature shift for this section: -1 cold blue .. 0 neutral .. 1 warm golden' },
         },
         required: ['t', 'label', 'intensity'],
       },
+    },
+    design: {
+      type: 'object',
+      description: "The song's own design identity. Think like a concrete product designer or artist: who would design THIS song's screen? Derive typography and accent decisions from that reference. Every song should feel distinct but tasteful.",
+      properties: {
+        designer: {
+          type: 'string',
+          description: 'The concrete design reference in a few words, e.g. "Dieter Rams functional calm", "Saul Bass cutout drama", "Teenage Engineering playful tech", "A24 film title minimalism"',
+        },
+        accent: { type: 'string', description: 'UI accent color as hex — bold enough to color buttons and highlights' },
+        titleCase: { type: 'string', enum: ['none', 'uppercase'] },
+        titleWeight: { type: 'string', enum: ['700', '800', '900'] },
+        lyricFont: { type: 'string', enum: ['sans', 'serif', 'mono'], description: 'sans = modern bold (default), serif = poetic/organic songs, mono = electronic/techy songs' },
+        lyricWeight: { type: 'string', enum: ['600', '700', '800'] },
+        mood: { type: 'string', enum: ['clean', 'raw', 'dreamy', 'electric'], description: 'clean = minimal grain, raw = heavy film grain, dreamy = soft glow, electric = punchy contrast' },
+      },
+      required: ['designer', 'accent', 'titleCase', 'titleWeight', 'lyricFont', 'lyricWeight', 'mood'],
     },
     scene: {
       type: 'object',
@@ -215,7 +240,7 @@ const VISUAL_SCHEMA = {
       required: ['world', 'ground', 'elements', 'sky', 'weather', 'beatEffect'],
     },
   },
-  required: ['vocals', 'lyrics', 'sections', 'scene'],
+  required: ['vocals', 'lyrics', 'sections', 'scene', 'design'],
 };
 
 // Gemini listens to the finished track and scripts its visuals: a scene spec
@@ -227,7 +252,7 @@ export async function analyzeTrack(audio, mime, context) {
     body: JSON.stringify({
       systemInstruction: {
         parts: [{
-          text: 'You are the visual director of a music app whose background is an endless side-scrolling silhouette landscape (Limbo-style, lit by colored fog). Listen to the track and script its visuals. Pick scene elements that genuinely fit what you hear — a desert groove gets dunes and cacti, synthwave gets a skyline, folk gets forest, a sea shanty gets waves. Transcribe sung lyrics with timestamps only if you clearly hear singing; never invent lyrics for instrumentals.',
+          text: 'You are the visual + design director of a music app whose background is an endless side-scrolling silhouette landscape (Limbo-style, lit by colored fog) with a Spotify-grade UI layer on top. Listen to the track and script its visuals AND its design identity. Pick scene elements that genuinely fit what you hear — a desert groove gets dunes and cacti, synthwave gets a skyline, folk gets forest, a sea shanty gets waves. Let the scene EVOLVE across sections (weather, beat effects, light warmth) so the visuals keep moving with the song. For the design identity, channel a concrete designer or artist who fits this exact song and derive accent color and typography from that reference. Transcribe sung lyrics with timestamps only if you clearly hear singing; never invent lyrics for instrumentals.',
         }],
       },
       contents: [{

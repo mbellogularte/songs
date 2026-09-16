@@ -146,6 +146,8 @@ const S = {
   travel: 0,
   energyBase: 0.45,
   intensity: null,      // live section intensity override
+  sectionFx: null,      // live per-section overrides {weather, weatherIntensity, beatEffect, warmth}
+  warmth: 0,
   ampFactor: 1,
   scene: DEFAULT_SCENE,
   cur: null,
@@ -368,7 +370,7 @@ function spawnFlock(W, H) {
 
 /* ---------- beat effects ---------- */
 function beat(strength, W, H) {
-  const fx = S.scene.beatEffect || 'flare';
+  const fx = S.sectionFx?.beatEffect || S.scene.beatEffect || 'flare';
   if (window.gsap) {
     window.gsap.to(S.light, {
       alpha: Math.min(1, 0.5 + S.sm.energy * 0.5 + 0.18),
@@ -485,15 +487,22 @@ export async function initVisualizer(mount, getBands) {
       S.cur[k] = mix(S.cur[k], S.target[k], 0.02 * dt);
     }
 
-    // light breathes with bass, brightens with energy
+    // light breathes with bass, brightens with energy, and drifts through the
+    // scene so the composition never sits still; sections can warm/cool it
     const sky = S.scene.sky || {};
+    const targetWarmth = S.sectionFx?.warmth ?? 0;
+    S.warmth += (targetWarmth - S.warmth) * 0.01 * dt;
+    const warmed = S.warmth >= 0
+      ? mix(S.cur.light, [255, 190, 120], S.warmth * 0.45)
+      : mix(S.cur.light, [140, 180, 255], -S.warmth * 0.45);
+    const lightX = w * (0.5 + 0.16 * Math.sin(S.worldX * 0.0006));
     const orbY = h * (0.14 + (1 - (sky.orbHeight ?? 0.5)) * 0.4);
-    S.light.position.set(w * 0.62, orbY);
+    S.light.position.set(lightX, orbY);
     S.light.width = S.light.height = Math.max(w, h) * (1.05 + sm.bass * 0.4);
     S.light.alpha = 0.42 + sm.energy * 0.5;
-    S.light.tint = rgbToInt(S.cur.light.map(Math.round));
+    S.light.tint = rgbToInt(warmed.map(Math.round));
 
-    S.orb.position.set(w * 0.62, orbY);
+    S.orb.position.set(lightX, orbY);
     const orbOn = sky.orb && sky.orb !== 'none';
     S.orb.alpha += ((orbOn ? (sky.orb === 'moon' ? 0.75 : 0.55) : 0) - S.orb.alpha) * 0.02 * dt;
     S.orb.scale.set(1 + sm.bass * 0.1);
@@ -523,8 +532,10 @@ export async function initVisualizer(mount, getBands) {
       for (const g of layer.chunks.values()) g.tint = tint;
     });
 
-    // weather: emission follows spec intensity + the highs
-    const weather = S.scene.weather || { type: 'dust', intensity: 0.4 };
+    // weather: emission follows spec intensity + the highs; sections override
+    const weather = S.sectionFx?.weather
+      ? { type: S.sectionFx.weather, intensity: S.sectionFx.weatherIntensity ?? 0.5 }
+      : S.scene.weather || { type: 'dust', intensity: 0.4 };
     const kind = weather.type === 'fireflies' ? 'firefly' : weather.type;
     if (kind && kind !== 'none') {
       const cap = kind === 'rain' ? 210 : kind === 'snow' ? 150 : 130;
@@ -624,6 +635,11 @@ export function setVisual(spec) {
 // Live section intensity from the track's timeline (null = use track energy).
 export function setIntensity(v) {
   S.intensity = v == null ? null : Math.max(0, Math.min(1, v));
+}
+
+// Live per-section scene overrides — the visuals evolve through the song.
+export function setSectionFx(fx) {
+  S.sectionFx = fx || null;
 }
 
 export function setPlaying(playing) {

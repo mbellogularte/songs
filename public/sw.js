@@ -1,7 +1,8 @@
-const SHELL_CACHE = 'sona-shell-v2';
+const SHELL_CACHE = 'sona-shell-v3';
 const SHELL = [
   '/', '/style.css', '/app.js', '/visualizer.js',
   '/vendor/pixi.min.mjs', '/vendor/gsap.min.js',
+  '/fonts/figtree-latin.woff2', '/fonts/figtree-latin-ext.woff2',
   '/manifest.webmanifest', '/icons/icon.svg',
 ];
 
