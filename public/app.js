@@ -569,7 +569,11 @@ const STATUS_LABEL = {
 
 function renderQueue() {
   const container = $('queue');
-  const tracks = [...allTracks(), ...state.pending];
+  // Up Next = what's coming: played tracks and the one playing now don't
+  // belong here — they'd push the fresh auto-mix rows out of the visible box
+  const tracks = [...allTracks(), ...state.pending].filter(
+    (t) => !state.playedIds.has(t.id) && t.id !== state.currentTrackId
+  );
   const seen = new Set();
   const animateNew = state.queueRendered; // no entry animation on first paint
 
