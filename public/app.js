@@ -23,6 +23,13 @@ const state = {
 };
 
 /* ================= audio: two decks + crossfade ================= */
+// iOS suspends the WebAudio graph the moment the app goes to the background,
+// killing the sound. On iOS we therefore play the elements NATIVELY (background
+// playback + lock screen controls work) and skip the analyser/crossfade graph;
+// visuals get synthesized bands instead. Everywhere else: full WebAudio.
+const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+  || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
 let audioCtx = null;
 let analyser = null;
 let freq = null;
@@ -65,7 +72,7 @@ document.addEventListener('pointerdown', () => {
 }, { passive: true });
 
 function connectAnalyser() {
-  if (audioCtx) return;
+  if (audioCtx || IOS) return;
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   master = audioCtx.createGain();
   analyser = audioCtx.createAnalyser();
@@ -92,7 +99,18 @@ function ramp(gainNode, to, sec) {
 
 // live bands feeding the visualizer: bass / mid / high / overall energy, 0..1
 function getBands() {
-  if (!analyser || deck().el.paused) return { bass: 0, mid: 0, high: 0, energy: 0 };
+  if (deck().el.paused) return { bass: 0, mid: 0, high: 0, energy: 0 };
+  if (!analyser) {
+    // no WebAudio (iOS): synthesize a musical pulse so the world still breathes
+    const t = performance.now() / 1000;
+    const beat = Math.max(0, Math.sin(t * Math.PI * 4)) ** 3; // ~120bpm
+    return {
+      bass: 0.22 + beat * 0.42,
+      mid: 0.3 + 0.12 * Math.sin(t * 1.3),
+      high: 0.24 + 0.16 * Math.sin(t * 3.7 + 1),
+      energy: 0.34 + 0.12 * Math.sin(t * 0.4),
+    };
+  }
   analyser.getByteFrequencyData(freq);
   const n = freq.length;
   const avg = (a, b) => {
@@ -456,7 +474,8 @@ for (const d of decks) {
       $('t-cur').textContent = fmtTime(el.currentTime);
       $('t-dur').textContent = fmtTime(el.duration);
       // DJ mix: start crossfading into the next track before this one ends
-      if (!state.mixing && el.duration - el.currentTime < 5 && nextReady()) {
+      // (needs the WebAudio gain graph — on iOS tracks switch on 'ended')
+      if (audioCtx && !state.mixing && el.duration - el.currentTime < 5 && nextReady()) {
         state.mixing = true;
         if (state.currentTrackId) state.playedIds.add(state.currentTrackId);
         playTrack(nextReady(), 4);
