@@ -195,7 +195,18 @@ app.get('/api/tracks/:id/audio', async (req, res) => {
 });
 
 // --- static frontend / PWA ---
-app.use(express.static(path.join(__dirname, '..', 'public')));
+// no-cache (= always revalidate, 304s keep it cheap) so deploys actually reach
+// clients — without this Safari caches app.js heuristically for days and
+// users keep running stale code. Vendor libs + fonts never change: cache hard.
+app.use(express.static(path.join(__dirname, '..', 'public'), {
+  setHeaders(res, filePath) {
+    if (/[/\\](vendor|fonts)[/\\]/.test(filePath)) {
+      res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+    } else {
+      res.setHeader('Cache-Control', 'no-cache');
+    }
+  },
+}));
 
 // SPA catch-all with share-ready meta: /s/:id links carry the stream's own
 // title + prompt in their OpenGraph tags (WhatsApp, iMessage, Slack previews)

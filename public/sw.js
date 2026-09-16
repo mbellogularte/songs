@@ -1,4 +1,4 @@
-const SHELL_CACHE = 'sona-shell-v3';
+const SHELL_CACHE = 'sona-shell-v4';
 const SHELL = [
   '/', '/style.css', '/app.js', '/visualizer.js',
   '/vendor/pixi.min.mjs', '/vendor/gsap.min.js',
