@@ -148,7 +148,10 @@ form.thinking input { animation: thinkpulse 1.2s ease-in-out infinite; }
   display: flex; align-items: center; justify-content: space-between;
   padding: 0.2rem 0.2rem 0.6rem;
 }
-#topbar .logo { font-weight: 800; font-size: 1.15rem; letter-spacing: -0.02em; }
+#topbar .logo {
+  font-weight: 800; font-size: 1.15rem; letter-spacing: -0.02em;
+  color: inherit; text-decoration: none; cursor: pointer;
+}
 
 #now { text-align: center; padding: clamp(0.3rem, 2vh, 1.2rem) 0 0; }
 #now-state {
