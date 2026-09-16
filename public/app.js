@@ -248,15 +248,31 @@ async function api(path, opts = {}) {
 }
 
 /* ================= landing: floating genre prompts ================= */
+// label shown on the card; prompt is what actually seeds the stream
 const GENRES = [
   'Afro House', 'Speed Garage', 'Sammy Virji x KETTAMA', 'Jump-Up Drum & Bass', 'Hard Techno',
-  'Hard Dance', 'Melodic House', 'French House', 'Latin House', 'Brazilian Funk', 'Amapiano',
+  'Hard Dance', 'Melodic House', 'French House', 'Latin House', 'Brazilian Funk',
   'Dungeon Synth', 'Comfy Synth', 'Blackgaze', 'Breakcore / Footwork Jungle', 'Deconstructed Club',
   'Neo-Microhouse', 'Krushclub', 'Sigilkore', 'Odetari x 6arelyhuman', 'Hyperpop-Adjacent / Digicore',
   'Oklou x Danny L Harle', 'PluggnB', 'Summrs x Kankan', 'Rage', 'Trap EDM', 'Boom Bap Revival',
   'UK Underground Rap', 'EsDeeKid x fakemink', 'Sexy Drill', 'Cash Cobain x Ice Spice',
   'Baltimore Club-Rap', 'Neoperreo', 'AKRIILA', 'Vinahouse', 'Funkot / Indobounce', 'Bedroom Pop',
   'Japanese City Pop', '50s Vocal Revival', 'Cinematic Score',
+  { l: 'Feng', p: 'Feng — late night bus home, headphones in' },
+  { l: 'dexter in the newsagent', p: 'dexter in the newsagent — dim red light, slow wind' },
+  { l: 'Infinity Knives & Brian Ennals', p: 'Infinity Knives & Brian Ennals — underground DC basement' },
+  { l: 'Too Many Strikers', p: 'Too Many Strikers — bedroom guitars, trap drums' },
+  { l: 'bunii', p: 'bunii — sad boy indie skate session' },
+  { l: 'overtonight', p: 'overtonight — acoustic R&B at 2am' },
+  { l: 'Mexican Reggaeton', p: 'Mexican Reggaeton — slow perreo, dark plugg' },
+  { l: 'El Malilla', p: 'El Malilla — CDMX street perreo' },
+  { l: 'Kidd Voodoo', p: 'Kidd Voodoo — Santiago underground reggaeton' },
+  { l: 'La Obsesión Factory', p: 'La Obsesión Factory — queer club, deconstructed dembow' },
+  { l: 'Planta Industrial', p: 'Planta Industrial — Chilean garage rock, cheap beer' },
+  { l: 'Marilina Bertoldi', p: 'Marilina Bertoldi — Mexican punk basement' },
+  { l: 'Duquesa', p: 'Duquesa — favela bass, car speakers' },
+  { l: 'Latin Electronic', p: 'Latin Electronic — Colombian night ride, aleteo' },
+  { l: 'Amapiano', p: 'Amapiano — Durban taxi rank, dark drums' },
 ];
 
 // every prompt idea gets its own light, like generated tracks do — a stable
@@ -285,13 +301,16 @@ function seedFloatingPrompts() {
 
   for (const genre of picks) {
     if (placed.length >= count) break;
+    const label = typeof genre === 'string' ? genre : genre.l;
+    const prompt = typeof genre === 'string' ? genre : genre.p;
     const chip = document.createElement('button');
     chip.className = 'float-chip';
-    const [c0, c1] = promptPalette(genre);
+    const [c0, c1] = promptPalette(label);
     chip.innerHTML = `<span class="fthumb" style="background:linear-gradient(135deg, ${c0}, ${c1})"></span><span></span>`;
-    chip.lastChild.textContent = genre;
+    chip.lastChild.textContent = label;
+    chip.title = prompt;
     chip.addEventListener('click', () => {
-      $('seed-input').value = genre;
+      $('seed-input').value = prompt;
       $('seed-form').requestSubmit();
     });
     box.appendChild(chip);
