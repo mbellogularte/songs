@@ -684,12 +684,12 @@ function renderQueue() {
       el.innerHTML = `<div class="qthumb"></div><div class="qmain"><span class="qtitle"></span><span class="qsub"></span></div><span class="qmeta"></span>`;
       container.appendChild(el);
       makeDraggable(el);
-      if (animateNew && gsap) {
-        gsap.from(el, {
-          height: 0, opacity: 0, paddingTop: 0, paddingBottom: 0,
-          duration: 0.55, ease: 'power2.out',
-          clearProps: 'height,paddingTop,paddingBottom',
-        });
+      // CSS animation, not a JS tween: rapid re-renders (optimistic row →
+      // real row + poll) can kill an in-flight tween and leave rows stuck
+      // invisible at opacity 0
+      if (animateNew) {
+        el.classList.add('row-in');
+        setTimeout(() => el.classList.remove('row-in'), 700);
       }
     }
     el.querySelector('.qtitle').textContent = t.title || t.prompt;
@@ -704,7 +704,9 @@ function renderQueue() {
         : STATUS_LABEL[t.status] || t.status;
     el.querySelector('.qmeta').textContent = meta;
 
+    const keepIntro = el.classList.contains('row-in');
     el.className = 'qtrack';
+    if (keepIntro) el.classList.add('row-in');
     if (t.id === state.currentTrackId) el.classList.add('playing');
     else if (state.playedIds.has(t.id)) el.classList.add('played');
     else el.classList.add(t.status);
