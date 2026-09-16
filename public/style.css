@@ -38,13 +38,23 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 [hidden] { display: none !important; }
 
-html, body {
+html {
   height: 100%;
+  overflow: hidden;
+}
+body {
+  /* pinned to the viewport: iOS Safari ignores overflow:hidden on body and
+     would otherwise let the whole app scroll/rubber-band */
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
   background: var(--bg);
   color: var(--ink);
   font-family: var(--font);
   font-weight: 500;
-  overflow: hidden;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -76,7 +86,7 @@ input::placeholder { color: var(--ink-faint); font-weight: 500; }
   100% { transform: translate(0, 0); }
 }
 
-main { position: relative; z-index: 3; height: 100dvh; display: flex; flex-direction: column; }
+main { position: relative; z-index: 3; height: 100%; display: flex; flex-direction: column; }
 
 /* ---------- landing ---------- */
 #landing { position: relative; align-items: center; justify-content: center; gap: 1.1rem; padding: 2rem; }
@@ -432,6 +442,29 @@ body.mood-electric #grain { opacity: 0.08; }
 body.mood-electric #vignette { background: radial-gradient(ellipse at 50% 40%, transparent 40%, rgba(4, 5, 8, 0.6) 85%, rgba(2, 3, 5, 0.92) 100%); }
 
 @media (max-width: 640px) {
-  #queue-wrap { height: 22vh; }
+  #queue-wrap { height: clamp(108px, 20dvh, 22vh); }
   #btn-play { width: 46px; height: 46px; }
+}
+
+/* short screens (phones with browser chrome): tighten everything so the
+   player always fits without scrolling */
+@media (max-height: 760px) {
+  #player { padding-top: max(0.5rem, env(safe-area-inset-top)); }
+  #topbar { padding-bottom: 0.25rem; }
+  #now { padding-top: 0.15rem; }
+  #now-title { font-size: clamp(1.25rem, 5vw, 2rem); }
+  #now-hint { font-size: 0.72rem; }
+  #transport { padding: 0.25rem 0 0.35rem; gap: 0.25rem; }
+  #btn-play { width: 42px; height: 42px; }
+  #controls { margin-top: 0; gap: 1.3rem; }
+  #queue-wrap { height: clamp(96px, 17dvh, 20vh); }
+  #queue-title { padding: 0.15rem 0.5rem 0.25rem; }
+  .qtrack { padding: 0.3rem 0.5rem; }
+  .qthumb { width: 34px; height: 34px; }
+  #composer { gap: 0.45rem; padding: 0.3rem 0 0.1rem; }
+  #suggestions { min-height: 1.7rem; }
+  .chip { padding: 0.35rem 0.85rem; font-size: 0.74rem; }
+  #prompt-form input { padding: 0.7rem 3rem 0.7rem 1.2rem; font-size: 0.9rem; }
+  #prompt-send { width: 30px; height: 30px; }
+  #lyrics .line { font-size: clamp(1rem, 3vw, 1.6rem); padding: 0.32em 0; }
 }
