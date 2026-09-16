@@ -141,6 +141,25 @@ app.get('/api/streams/:id/suggestions', async (req, res) => {
   res.json({ suggestions: await brain.suggestions(streams[0].seed_prompt, history.reverse()) });
 });
 
+// --- landing social proof: real recently generated tracks ---
+let statsCache = { at: 0, data: null };
+app.get('/api/stats', async (_req, res) => {
+  if (Date.now() - statsCache.at < 60_000 && statsCache.data) return res.json(statsCache.data);
+  const { rows: totals } = await pool.query(
+    `SELECT count(*) FILTER (WHERE status = 'ready')::int AS tracks,
+            (SELECT count(*)::int FROM streams) AS streams,
+            COALESCE(sum(duration_ms) FILTER (WHERE status = 'ready'), 0)::bigint AS ms
+     FROM tracks`
+  );
+  const { rows: recent } = await pool.query(
+    `SELECT title, visual->'scene'->>'world' AS world
+     FROM tracks WHERE status = 'ready' AND title IS NOT NULL
+     ORDER BY created_at DESC LIMIT 14`
+  );
+  statsCache = { at: Date.now(), data: { ...totals[0], recent } };
+  res.json(statsCache.data);
+});
+
 // --- audio with Range support so seeking works ---
 app.get('/api/tracks/:id/audio', async (req, res) => {
   const { rows } = await pool.query('SELECT audio, mime FROM tracks WHERE id = $1 AND status = $2', [

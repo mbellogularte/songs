@@ -448,6 +448,41 @@ body.mood-electric #vignette { background: radial-gradient(ellipse at 50% 40%, t
 
 /* short screens (phones with browser chrome): tighten everything so the
    player always fits without scrolling */
+/* ---------- landing social proof ---------- */
+#social-proof {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 0.85rem;
+  margin-top: 1.6rem;
+}
+.sp-row { display: flex; align-items: center; gap: 0.9rem; flex-wrap: wrap; justify-content: center; }
+.sp-avatars { display: flex; align-items: center; }
+.sp-avatars .sp-av {
+  width: 30px; height: 30px; border-radius: 50%;
+  border: 2px solid var(--bg);
+  margin-left: -9px;
+}
+.sp-avatars .sp-av:first-child { margin-left: 0; }
+.sp-stats { font-size: 0.86rem; font-weight: 500; color: var(--ink-sub); }
+.sp-stats b { color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; }
+.sp-stars { color: #ffce54; letter-spacing: 0.08em; margin-left: 0.35rem; }
+.sp-live {
+  display: flex; align-items: center; gap: 0.5rem;
+  font-size: 0.78rem; font-weight: 500; color: var(--ink-faint);
+  max-width: min(620px, 90vw);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sp-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #35d07f;
+  flex-shrink: 0;
+  animation: livepulse 2s ease-in-out infinite;
+}
+@keyframes livepulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+@media (max-width: 640px) {
+  #social-proof { margin-top: 1.2rem; }
+  .sp-stats { font-size: 0.78rem; text-align: center; }
+}
+
 /* touch devices: inputs must be ≥16px or iOS zooms in on focus and leaves
    the whole app scrolled/zoomed */
 @media (pointer: coarse) {

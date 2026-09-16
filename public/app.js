@@ -328,6 +328,53 @@ function seedFloatingPrompts() {
 }
 seedFloatingPrompts();
 
+/* ================= landing: social proof ================= */
+function initSocialProof() {
+  const av = document.querySelector('.sp-avatars');
+  if (!av || av.children.length) return;
+  ['aria', 'nox', 'kai', 'mira', 'juno', 'sol'].forEach((seed) => {
+    const dot = document.createElement('span');
+    dot.className = 'sp-av';
+    const [a, b] = promptPalette(seed);
+    dot.style.background = `linear-gradient(135deg, ${a}, ${b})`;
+    av.appendChild(dot);
+  });
+
+  const counter = document.querySelector('[data-countup]');
+  if (counter) {
+    const target = Number(counter.dataset.countup);
+    if (gsap) {
+      const o = { v: 0 };
+      gsap.to(o, {
+        v: target, duration: 2.4, ease: 'power2.out', delay: 0.4,
+        onUpdate: () => { counter.textContent = Math.round(o.v).toLocaleString('en-US'); },
+      });
+    } else {
+      counter.textContent = target.toLocaleString('en-US');
+    }
+  }
+
+  // live ticker: the tracks Sona actually generated most recently
+  api('/api/stats').then(({ recent }) => {
+    if (!recent?.length) return;
+    let i = 0;
+    const el = $('sp-ticker');
+    const tick = () => {
+      const r = recent[i % recent.length];
+      i++;
+      const text = `just generated: “${r.title}”${r.world ? ` — ${r.world}` : ''}`;
+      if (gsap) {
+        gsap.to(el, { opacity: 0, duration: 0.4, onComplete: () => { el.textContent = text; gsap.to(el, { opacity: 1, duration: 0.6 }); } });
+      } else {
+        el.textContent = text;
+      }
+    };
+    tick();
+    setInterval(tick, 5200);
+  }).catch(() => {});
+}
+initSocialProof();
+
 /* ================= stream lifecycle ================= */
 $('seed-form').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -379,10 +426,31 @@ function allTracks() {
   return state.stream ? state.stream.tracks : [];
 }
 
+// The server's current_position is the durable playhead — after a refresh the
+// local playedIds set is empty, so without it the whole history would look
+// "upcoming" again and playback would restart from track 1.
+function playheadPos() {
+  return Number(state.stream?.current_position ?? 0);
+}
+
 function upcoming() {
+  const pos = playheadPos();
   return allTracks().filter(
-    (t) => !state.playedIds.has(t.id) && t.id !== state.currentTrackId && t.status !== 'failed'
+    (t) =>
+      Number(t.position) > pos &&
+      !state.playedIds.has(t.id) &&
+      t.id !== state.currentTrackId &&
+      t.status !== 'failed'
   );
+}
+
+// after a reload: the track sitting exactly at the playhead was the one
+// playing — resume with it instead of skipping ahead
+function resumeCandidate() {
+  if (state.currentTrackId || state.playedIds.size) return null;
+  return allTracks().find(
+    (t) => Number(t.position) === playheadPos() && t.status === 'ready'
+  ) || null;
 }
 
 function nextReady() {
@@ -451,7 +519,7 @@ async function playTrack(track, fadeSec = 0) {
 function maybeAutoplay() {
   const fresh = !state.currentTrackId && !state.playedIds.size && !state.waiting;
   if (!fresh && !state.waiting) return;
-  const next = nextReady();
+  const next = (fresh && resumeCandidate()) || nextReady();
   if (next) playTrack(next, 0);
 }
 
@@ -514,7 +582,7 @@ $('btn-play').addEventListener('click', () => {
   const el = deck().el;
   if (el.paused) {
     if (!state.currentTrackId) {
-      const next = nextReady();
+      const next = resumeCandidate() || nextReady();
       if (next) return playTrack(next, 0);
       state.waiting = true;
       render();
@@ -596,11 +664,15 @@ const STATUS_LABEL = {
 
 function renderQueue() {
   const container = $('queue');
-  // Up Next = what's coming: played tracks and the one playing now don't
-  // belong here — they'd push the fresh auto-mix rows out of the visible box
-  const tracks = [...allTracks(), ...state.pending].filter(
-    (t) => !state.playedIds.has(t.id) && t.id !== state.currentTrackId
-  );
+  // Up Next = what's coming: everything at or behind the server playhead
+  // (played in any session) and the currently playing track stay out
+  const pos = playheadPos();
+  const tracks = [
+    ...allTracks().filter(
+      (t) => Number(t.position) > pos && !state.playedIds.has(t.id) && t.id !== state.currentTrackId
+    ),
+    ...state.pending,
+  ];
   const seen = new Set();
   const animateNew = state.queueRendered; // no entry animation on first paint
 
